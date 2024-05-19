@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "projekt-zespolowy"
+rootProject.name = "Krasnale Wrocławskie"
 include(":app")
