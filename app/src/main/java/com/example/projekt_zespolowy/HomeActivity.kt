@@ -37,15 +37,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.projekt_zespolowy.data.Dwarfs
+import com.example.projekt_zespolowy.data.DwarfsDatabase
 import com.example.projekt_zespolowy.ui.NavigationItem
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.ProjektzespolowyTheme
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -61,95 +65,60 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 class HomeActivity : ComponentActivity() {
-    private lateinit var imageUri: Uri
-    private lateinit var file: File
+    lateinit var imageUri: Uri
+    lateinit var file: File
     val uploadedImage = mutableStateOf<ImageBitmap?>(null)
+    lateinit var database: DwarfsDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        database = DwarfsDatabase.getDatabase(this)
+
         setContent {
             ProjektzespolowyTheme {
-                MainScreen()
+                MainScreen(this)
             }
         }
     }
 
     @SuppressLint("SimpleDateFormat")
-    @Composable
-    fun HomeScreen() {
-        val imageUriState = remember { mutableStateOf<Uri?>(null) }
-        imageUri = imageUriState.value ?: Uri.EMPTY
-
-        file = createImageFile()
-
-        val uri = FileProvider.getUriForFile(
-            applicationContext,
-            "com.app.id.fileProvider", file
+    fun createImageFile(): File {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val imageFileName = "JPEG_$timeStamp"
+        return File.createTempFile(
+            imageFileName, /* prefix */
+            ".jpg", /* suffix */
+            externalCacheDir /* directory */
         )
+    }
 
-        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (success) {
-                imageUriState.value = uri
-                saveImageToGallery(uri)
+    fun hasCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun requestCameraPermission() {
+        requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA_PERMISSION)
+    }
+
+    fun saveImageToGallery(uri: Uri) {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "Image_${System.currentTimeMillis()}.jpg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures")
             }
         }
-
-        val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let { imageUriState.value = it }
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (imageUriState.value != null) {
-                decodeBitmap(imageUri)?.let {
-                    Image(
-                        bitmap = it,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .padding(16.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = {
-                        if (hasCameraPermission()) {
-                            cameraLauncher.launch(uri)
-                        } else {
-                            requestCameraPermission()
-                            if (hasCameraPermission()) {
-                                cameraLauncher.launch(uri)
-                            }
-                        }
-                    }
-                ) {
-                    Text("Take a picture")
-                }
-                Button(
-                    onClick = {
-                        galleryLauncher.launch("image/*")
-                    }
-                ) {
-                    Text("Choose from gallery")
-                }
-                Button(
-                    onClick = {
-                        imageUriState.value?.let { uri ->
-                            uploadImage(uri)
-                        }
-                    }
-                ) {
-                    Text("Upload image")
-                }
+        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.let { imageUri ->
+            contentResolver.openOutputStream(imageUri)?.use { outputStream ->
+                contentResolver.openInputStream(uri)?.copyTo(outputStream)
             }
         }
     }
 
-    private fun uploadImage(uri: Uri) {
+    fun uploadImage(uri: Uri) {
         if (!isNetworkAvailable()) {
             Toast.makeText(this, "No internet connection", Toast.LENGTH_LONG).show()
             return
@@ -197,6 +166,7 @@ class HomeActivity : ComponentActivity() {
 
                 runOnUiThread {
                     Toast.makeText(this@HomeActivity, message, Toast.LENGTH_LONG).show()
+                    saveToDatabase(message ?: message.toString(), "Krasnale")
                 }
 
 //                val headers = json?.getJSONObject("headers")
@@ -222,113 +192,102 @@ class HomeActivity : ComponentActivity() {
         })
     }
 
-    private fun requestBodyToString(request: Request): String {
-        val copy = request.newBuilder().build()
-        val buffer = okio.Buffer()
-        copy.body?.writeTo(buffer)
-        val requestBodyString = buffer.readUtf8()
-
-        // Format the request body for logging
-        val gson = GsonBuilder().setPrettyPrinting().create()
-        return try {
-            val json = gson.toJson(JsonParser.parseString(requestBodyString))
-            json
-        } catch (e: Exception) {
-            Log.e("TEST_WYSYLANIA_ERROR", "Error parsing request body: ${e.message}")
-            requestBodyString
-        }
-    }
-
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
         return networkInfo != null && networkInfo.isConnected
     }
 
-    @SuppressLint("SimpleDateFormat")
-    private fun createImageFile(): File {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        val imageFileName = "JPEG_$timeStamp"
-        return File.createTempFile(
-            imageFileName, /* prefix */
-            ".jpg", /* suffix */
-            externalCacheDir /* directory */
-        )
-    }
-
-    private fun hasCameraPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestCameraPermission() {
-        requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA_PERMISSION)
-    }
-
-    private fun saveImageToGallery(uri: Uri) {
-        val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, "Image_${System.currentTimeMillis()}.jpg")
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures")
-            }
-        }
-        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.let { imageUri ->
-            contentResolver.openOutputStream(imageUri)?.use { outputStream ->
-                contentResolver.openInputStream(uri)?.copyTo(outputStream)
-            }
-        }
-    }
-
     companion object {
         private const val REQUEST_CAMERA_PERMISSION = 123
     }
 
-    @Composable
-    private fun decodeBitmap(uri: Uri): ImageBitmap? {
-        return contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it)?.asImageBitmap()
-        }
+    fun saveToDatabase(message: String, name: String){
+        val uploadDwarfMessage = Dwarfs(Name = name, DateStamp = Date(), Count = 1)
+//        lifecycleScope.launch {
+//            database.dwarfs().insert(uploadDwarfMessage)
+//        }
     }
-
-
-    @Composable
-    fun MainScreen() {
-        val navController = rememberNavController()
-        Scaffold(
-            topBar = { TopBar() },
-            bottomBar = { BottomNavigationBar(navController) },
-            content = { padding ->
-                Box(modifier = Modifier
-                    .padding(padding)
-                    .background(Light_Purple)
-                ) {
-                    Navigation(navController = navController)
-                }
-            },
-            modifier = Modifier
-                .fillMaxSize()
-        )
-    }
-
-    @Composable
-    fun Navigation(navController: NavHostController) {
-        NavHost(navController, startDestination = NavigationItem.Home.route) {
-            composable(NavigationItem.Home.route) {
-                HomeScreen()
-            }
-            composable(NavigationItem.History.route) {
-                HistoryScreen()
-            }
-            composable(NavigationItem.Badges.route) {
-                BadgesScreen()
-            }
-        }
-    }
-
 }
 
+@SuppressLint("SimpleDateFormat")
+@Composable
+fun HomeScreen(activity: HomeActivity) {
+    val imageUriState = remember { mutableStateOf<Uri?>(null) }
+    activity.imageUri = imageUriState.value ?: Uri.EMPTY
 
+    activity.file = activity.createImageFile()
+
+    val uri = FileProvider.getUriForFile(
+        activity.applicationContext,
+        "com.app.id.fileProvider", activity.file
+    )
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            imageUriState.value = uri
+            activity.saveImageToGallery(uri)
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { imageUriState.value = it }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        ) {
+            Button(
+                onClick = {
+                    if (activity.hasCameraPermission()) {
+                        cameraLauncher.launch(uri)
+                    } else {
+                        activity.requestCameraPermission()
+                        if (activity.hasCameraPermission()) {
+                            cameraLauncher.launch(uri)
+                        }
+                    }
+                }
+            ) {
+                Text("Take a picture")
+            }
+            Button(
+                onClick = {
+                    galleryLauncher.launch("image/*")
+                }
+            ) {
+                Text("Choose from gallery")
+            }
+            Button(
+                onClick = {
+                    imageUriState.value?.let { uri ->
+                        activity.uploadImage(uri)
+                    }
+                }
+            ) {
+                Text("Upload image")
+            }
+            if (imageUriState.value != null) {
+                decodeBitmap(activity, activity.imageUri)?.let {
+                    Image(
+                        bitmap = it,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
+    return activity.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it)?.asImageBitmap()
+    }
+}
 
