@@ -1,6 +1,5 @@
 package com.example.projekt_zespolowy.data
 
-import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
@@ -8,7 +7,7 @@ import java.util.Date
 @Entity(tableName = "dwarfs")
 data class Dwarfs(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val Name: String,
-    val DateStamp: Date,
-    val Count: Int
+    val name: String,
+    val date_stamp: Date,
+    val count: Int
 )

@@ -49,7 +49,7 @@ fun MainScreen(activity: HomeActivity) {
         content = { padding ->
             Box(modifier = Modifier
                 .padding(padding)
-                .background(Light_Purple)
+                .background(Light_Purple.copy(alpha = 0.4f))
             ) {
                 Navigation(navController = navController, activity = activity)
             }
@@ -66,7 +66,7 @@ fun Navigation(navController: NavHostController, activity: HomeActivity) {
             HomeScreen(activity)
         }
         composable(NavigationItem.History.route) {
-            HistoryScreen()
+            HistoryScreen(activity)
         }
         composable(NavigationItem.Badges.route) {
             BadgesScreen()
