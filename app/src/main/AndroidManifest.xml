@@ -35,11 +35,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Projektzespolowy"
         tools:targetApi="31">
-        <activity
-            android:name=".NavBarActivity"
-            android:exported="false"
-            android:label="@string/title_activity_nav_bar"
-            android:theme="@style/Theme.Projektzespolowy" />
+<!--        <activity-->
+<!--            android:name=".NavBarActivity"-->
+<!--            android:exported="false"-->
+<!--            android:label="@string/title_activity_nav_bar"-->
+<!--            android:theme="@style/Theme.Projektzespolowy" />-->
         <activity
             android:name=".HomeActivity"
             android:exported="false"

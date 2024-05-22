@@ -53,146 +53,99 @@ import androidx.navigation.compose.rememberNavController
 import com.example.projekt_zespolowy.ui.theme.Dark_Purple
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.White
+@Composable
+fun MainScreen(activity: HomeActivity) {
+    val navController = rememberNavController()
+    Scaffold(
+        topBar = { TopBar() },
+        bottomBar = { BottomNavigationBar(navController) },
+        content = { padding ->
+            Box(modifier = Modifier
+                .padding(padding)
+                .background(Light_Purple.copy(alpha = 0.4f))
+            ) {
+                Navigation(navController = navController, activity = activity)
+            }
+        },
+        modifier = Modifier
+            .fillMaxSize()
+    )
+}
 
-//class NavBarActivity : ComponentActivity() {
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        enableEdgeToEdge()
-//        setContent {
-//            ProjektzespolowyTheme {
-//                MainScreen()
-//            }
-//        }
-//    }
-//
-//    @Composable
-//    fun MainScreen() {
-//        val navController = rememberNavController()
-//        Scaffold(
-//            topBar = { TopBar() },
-//            bottomBar = { BottomNavigationBar(navController) },
-//            content = { padding ->
-//                Box(modifier = Modifier.padding(padding)) {
-//                    Navigation(navController = navController)
-//                }
-//            },
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(Color.White),
-//        )
-//    }
-//
-//    @Composable
-//    fun Navigation(navController: NavHostController) {
-//        NavHost(navController, startDestination = NavigationItem.Home.route) {
-//            composable(NavigationItem.Home.route) {
-//                HomeScreen()
-//            }
-//            composable(NavigationItem.History.route) {
-//                HistoryScreen()
-//            }
-//            composable(NavigationItem.Badges.route) {
-//                BadgesScreen()
-//            }
-//        }
-//    }
+@Composable
+fun Navigation(navController: NavHostController, activity: HomeActivity) {
+    NavHost(navController, startDestination = NavigationItem.Home.route) {
+        composable(NavigationItem.Home.route) {
+            HomeScreen(activity)
+        }
+        composable(NavigationItem.History.route) {
+            HistoryScreen(activity)
+        }
+        composable(NavigationItem.Badges.route) {
+            BadgesScreen()
+        }
+    }
+}
 
-//    @Composable
-//    fun TopBar() {
-//        TopAppBar(
-//            title = {
-//                Text(
-//                    text = "Krasnale Wrocławskie",
-//                    fontSize = 18.sp,
-//                    color = Light_Purple,
-//                    modifier = Modifier.fillMaxWidth(),
-//                    textAlign = TextAlign.Center
-//                )
-//                DropDownPanel()
-//            },
-//            backgroundColor = Dark_Purple,
-//        )
-//    }
+@Composable
+    fun TopBar() {
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Krasnale Wrocławskie",
+                    fontSize = 18.sp,
+                    color = Light_Purple,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            },
+            backgroundColor = Dark_Purple,
+        )
+    }
 
-//@Composable
-//fun DropDownPanel() {
-//    var expanded by remember { mutableStateOf(false) }
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .wrapContentSize(Alignment.TopStart)
-//    )  {
-//        IconButton(
-//            onClick = { expanded = !expanded },
-//            modifier = Modifier.padding(16.dp),
-//            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Red)
-//        ) {
-//            Icon(
-//                imageVector = Icons.Default.Menu,
-//                contentDescription = "..."
-//            )
-//        }
-//
-//        DropdownMenu(
-//            expanded = expanded,
-//            onDismissRequest = { expanded = false }
-//        ) {
-//            DropdownMenuItem(
-//                text = { Text("Take Photo") },
-//                onClick = {
-//
-//
-//                }
-//            )
-//        }
-//    }
-//}
-//
-//
-//    @Composable
-//    fun BottomNavigationBar(navController: NavController) {
-//        val items = listOf(
-//            NavigationItem.Home,
-//            NavigationItem.History,
-//            NavigationItem.Badges
-//        )
-//        BottomNavigation(
-//            backgroundColor = Dark_Purple,
-//        ) {
-//            val navBackStackEntry by navController.currentBackStackEntryAsState()
-//            val currentRoute = navBackStackEntry?.destination?.route
-//            items.forEach { item ->
-//                BottomNavigationItem(
-//                    icon = {
-//                        Icon(
-//                            painterResource(id = item.icon),
-//                            contentDescription = item.title,
-//                            tint = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f),
-//                        )
-//                    },
-//                    label = { Text(text = item.title, color = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f)) },
-//                    alwaysShowLabel = true,
-//                    selected = currentRoute == item.route,
-//                    onClick = {
-//                        navController.navigate(item.route) {
-//                            // Pop up to the start destination of the graph to
-//                            // avoid building up a large stack of destinations
-//                            // on the back stack as users select items
-//                            navController.graph.startDestinationRoute?.let { route ->
-//                                popUpTo(route) {
-//                                    saveState = true
-//                                }
-//                            }
-//                            // Avoid multiple copies of the same destination when
-//                            // reselecting the same item
-//                            launchSingleTop = true
-//                            // Restore state when reselecting a previously selected item
-//                            restoreState = true
-//                        }
-//                    }
-//                )
-//            }
-//        }
-//    }
-//}
+@Composable
+fun BottomNavigationBar(navController: NavController) {
+    val items = listOf(
+        NavigationItem.Home,
+        NavigationItem.History,
+        NavigationItem.Badges
+    )
+    BottomNavigation(
+        backgroundColor = Dark_Purple,
+    ) {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+        items.forEach { item ->
+            BottomNavigationItem(
+                icon = {
+                    Icon(
+                        painterResource(id = item.icon),
+                        contentDescription = item.title,
+                        tint = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f),
+                    )
+                },
+                label = { Text(text = item.title, color = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f)) },
+                alwaysShowLabel = true,
+                selected = currentRoute == item.route,
+                onClick = {
+                    navController.navigate(item.route) {
+                        // Pop up to the start destination of the graph to
+                        // avoid building up a large stack of destinations
+                        // on the back stack as users select items
+                        navController.graph.startDestinationRoute?.let { route ->
+                            popUpTo(route) {
+                                saveState = true
+                            }
+                        }
+                        // Avoid multiple copies of the same destination when
+                        // reselecting the same item
+                        launchSingleTop = true
+                        // Restore state when reselecting a previously selected item
+                        restoreState = true
+                    }
+                }
+            )
+        }
+    }
+}
+
