@@ -3,4 +3,6 @@
     <string name="title_activity_start">StartActivity</string>
     <string name="title_activity_history">HistoryActivity</string>
     <string name="title_activity_nav_bar">NavBarActivity</string>
+    <string name="google_cloud_server_client_id">492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com</string>
+    <string name="web_client_id">399037948068-dcgjki7vi9m7nbo051e1jebc1r0h3ao1.apps.googleusercontent.com</string>
 </resources>
