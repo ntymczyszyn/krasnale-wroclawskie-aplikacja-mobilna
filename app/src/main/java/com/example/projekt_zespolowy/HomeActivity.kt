@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
@@ -22,26 +23,48 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material.BottomNavigation
+import androidx.compose.material.BottomNavigationItem
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.projekt_zespolowy.ui.NavigationItem
+import com.example.projekt_zespolowy.ui.theme.Dark_Purple
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.ProjektzespolowyTheme
 import com.google.gson.GsonBuilder
@@ -64,6 +87,9 @@ class HomeActivity : ComponentActivity() {
     private lateinit var imageUri: Uri
     private lateinit var file: File
     val uploadedImage = mutableStateOf<ImageBitmap?>(null)
+    //Android Client ID - 492039840169-k15asq5q9pi8p1n8et6gvsg0tbo9j01o.apps.googleusercontent.com
+    //Web Client ID - 492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com
+    //Web Secret ID - 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
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,6 +172,7 @@ class HomeActivity : ComponentActivity() {
                     Text("Upload image")
                 }
             }
+
         }
     }
 
@@ -324,6 +351,105 @@ class HomeActivity : ComponentActivity() {
             }
             composable(NavigationItem.Badges.route) {
                 BadgesScreen()
+            }
+        }
+    }
+
+    @Composable
+    fun DropDownPanel() {
+        var expanded by remember { mutableStateOf(false) }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentSize(Alignment.TopStart)
+        )  {
+            IconButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.padding(16.dp),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Red)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Profile"
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Logout") },
+                    onClick = {
+                        val navigate = Intent(this@HomeActivity, MainActivity::class.java)
+                        startActivity(navigate)
+
+                    }
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun TopBar() {
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Krasnale Wrocławskie",
+                    fontSize = 18.sp,
+                    color = Light_Purple,
+                    modifier = Modifier.width(300.dp),
+                    textAlign = TextAlign.Center
+                )
+                DropDownPanel()
+            },
+            backgroundColor = Dark_Purple,
+        )
+    }
+
+    @Composable
+    fun BottomNavigationBar(navController: NavController) {
+        val items = listOf(
+            NavigationItem.Home,
+            NavigationItem.History,
+            NavigationItem.Badges
+        )
+        BottomNavigation(
+            backgroundColor = Dark_Purple,
+        ) {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+            items.forEach { item ->
+                BottomNavigationItem(
+                    icon = {
+                        Icon(
+                            painterResource(id = item.icon),
+                            contentDescription = item.title,
+                            tint = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f),
+                        )
+                    },
+                    label = { Text(text = item.title, color = if (currentRoute == item.route) Light_Purple else Light_Purple.copy(0.4f)) },
+                    alwaysShowLabel = true,
+                    selected = currentRoute == item.route,
+                    onClick = {
+                        navController.navigate(item.route) {
+                            // Pop up to the start destination of the graph to
+                            // avoid building up a large stack of destinations
+                            // on the back stack as users select items
+                            navController.graph.startDestinationRoute?.let { route ->
+                                popUpTo(route) {
+                                    saveState = true
+                                }
+                            }
+                            // Avoid multiple copies of the same destination when
+                            // reselecting the same item
+                            launchSingleTop = true
+                            // Restore state when reselecting a previously selected item
+                            restoreState = true
+                        }
+                    }
+                )
             }
         }
     }

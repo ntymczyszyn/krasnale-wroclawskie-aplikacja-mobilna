@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "399037948068",
+    "project_id": "krasnale-wroclawskie",
+    "storage_bucket": "krasnale-wroclawskie.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:399037948068:android:0b301bb0018f0c2f870631",
+        "android_client_info": {
+          "package_name": "com.example.projekt_zespolowy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "399037948068-c36gtsn27jtgiitcmee582bv68oiblg5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.projekt_zespolowy",
+            "certificate_hash": "88f9b245bbf6a5eebef52d911eecc7b1ddf2de69"
+          }
+        },
+        {
+          "client_id": "399037948068-dcgjki7vi9m7nbo051e1jebc1r0h3ao1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtCO8pDeflk2HBK8l9NODgipcBeMCt-8Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "399037948068-dcgjki7vi9m7nbo051e1jebc1r0h3ao1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

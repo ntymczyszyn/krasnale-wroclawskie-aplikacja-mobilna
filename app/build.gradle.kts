@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.google.gms.google.services)
+    id("kotlin-kapt")
+    //id("com.google.gms.google-services")
 }
 
 android {
@@ -35,7 +38,7 @@ android {
     }
     buildFeatures {
         compose = true
-        viewBinding = true
+
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -57,6 +60,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.firebase.auth)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -66,6 +70,15 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     implementation("com.google.code.gson:gson:2.8.9")
+
+    //Google SignIn
+    implementation("com.google.firebase:firebase-auth:23.0.0")
+    implementation("com.google.android.gms:play-services-auth:21.1.1")
+
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation("io.coil-kt:coil-compose:2.2.2")
+
 
     // Navigation
     implementation ("androidx.compose.material:material:1.5.4")
