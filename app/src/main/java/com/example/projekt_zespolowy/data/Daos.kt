@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DwarfDao {
@@ -17,7 +18,7 @@ interface DwarfDao {
     fun getDwarfByName(name: String): Dwarfs
 
     @Query("SELECT * FROM dwarfs ORDER BY name ASC")
-    fun getAllByName(): LiveData<List<Dwarfs>>
+    fun getAllByName(): Flow<List<Dwarfs>>
 
     @Query("SELECT * FROM dwarfs ORDER BY date_stamp DESC")
     fun getAllByDate(): List<Dwarfs>
