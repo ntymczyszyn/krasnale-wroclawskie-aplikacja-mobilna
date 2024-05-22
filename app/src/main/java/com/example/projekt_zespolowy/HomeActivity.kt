@@ -80,6 +80,7 @@ import com.example.projekt_zespolowy.data.Dwarfs
 import com.example.projekt_zespolowy.data.DwarfsDatabase
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.ProjektzespolowyTheme
+import kotlinx.coroutines.flow.Flow
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -242,7 +243,7 @@ class HomeActivity : ComponentActivity() {
 
     }
 
-    fun getDwarfsList(): LiveData<List<Dwarfs>> {
+    fun getDwarfsList(): Flow<List<Dwarfs>> {
         return database.dwarfs().getAllByName()
     }
 }
