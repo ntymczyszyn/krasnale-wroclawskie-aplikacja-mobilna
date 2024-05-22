@@ -1,4 +1,4 @@
-package com.example.projekt_zespolowy
+package com.example.projekt_zespolowy.google
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -20,8 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat.startActivity
 import coil.compose.AsyncImage
+import com.example.projekt_zespolowy.HomeActivity
+import com.example.projekt_zespolowy.MainActivity
 
 @Composable
 fun ProfileScreen(

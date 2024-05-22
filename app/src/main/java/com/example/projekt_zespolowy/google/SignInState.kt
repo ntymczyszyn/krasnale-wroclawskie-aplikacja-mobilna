@@ -1,4 +1,4 @@
-package com.example.projekt_zespolowy
+package com.example.projekt_zespolowy.google
 
 data class SignInState(
     val isSignInSuccessful: Boolean = false,

@@ -1,6 +1,5 @@
-package com.example.projekt_zespolowy
+package com.example.projekt_zespolowy.google
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

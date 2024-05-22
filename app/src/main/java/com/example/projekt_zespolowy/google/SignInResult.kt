@@ -1,4 +1,4 @@
-package com.example.projekt_zespolowy
+package com.example.projekt_zespolowy.google
 
 data class SignInResult(
     val data: UserData?,
