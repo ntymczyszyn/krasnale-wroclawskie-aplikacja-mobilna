@@ -63,7 +63,7 @@ dependencies {
 
     implementation(libs.firebase.auth)
 
-    implementation(libs.androidx.runtime.livedata)
+//    implementation(libs.androidx.runtime.livedata)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

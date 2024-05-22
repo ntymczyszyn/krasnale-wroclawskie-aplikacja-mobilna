@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.startActivity
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -391,10 +392,7 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
 }
 
 @Composable
-fun DropDownPanel(activity: HomeActivity,
-                  cameraLauncher:  ManagedActivityResultLauncher<Uri, Boolean>,
-                  galleryLauncher: ManagedActivityResultLauncher<String, Uri?>,
-                  uri: Uri) {
+fun DropDownPanel(activity: HomeActivity) {
     var expanded by remember { mutableStateOf(false) }
 
     Box(
@@ -418,22 +416,13 @@ fun DropDownPanel(activity: HomeActivity,
             onDismissRequest = { expanded = false }
         ) {
             DropdownMenuItem(
-                text = { Text("Take Photo") },
+                text = { Text("Log out") },
                 onClick = {
-                    if (activity.hasCameraPermission()) {
-                        cameraLauncher.launch(uri)
-                    } else {
-                        activity.requestCameraPermission()
-                        if (activity.hasCameraPermission()) {
-                            cameraLauncher.launch(uri)
-                        }
-                    }
+                    val navigate = Intent(activity, MainActivity::class.java)
+                    activity.startActivity(navigate)
                 }
             )
-            DropdownMenuItem(
-                text = { Text("From Gallery") },
-                onClick = { galleryLauncher.launch("image/*") }
-            )
+
         }
     }
 }

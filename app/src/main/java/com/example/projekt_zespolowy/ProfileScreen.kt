@@ -1,9 +1,11 @@
 package com.example.projekt_zespolowy
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -18,10 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.startActivity
 import coil.compose.AsyncImage
 
 @Composable
 fun ProfileScreen(
+    activity: MainActivity,
     userData: UserData?,
     onSignOut: () -> Unit
 ){
@@ -30,6 +34,14 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ){
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+            val navigate = Intent(activity, HomeActivity::class.java)
+            activity.startActivity(navigate)
+        }) {
+            Text(text = "Przejdź do aplikacji")
+        }
         if(userData?.profilePictureUrl != null){
             AsyncImage(
                 model = userData.profilePictureUrl,

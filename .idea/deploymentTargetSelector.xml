@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-05-22T18:17:16.741743600Z">
+        <DropdownSelection timestamp="2024-05-22T18:54:37.694256800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=R5CWB0G880B" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\macie\.android\avd\Telefonik.avd" />
             </handle>
           </Target>
         </DropdownSelection>

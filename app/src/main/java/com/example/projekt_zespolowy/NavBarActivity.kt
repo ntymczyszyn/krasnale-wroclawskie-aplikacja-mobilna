@@ -57,7 +57,7 @@ import com.example.projekt_zespolowy.ui.theme.White
 fun MainScreen(activity: HomeActivity) {
     val navController = rememberNavController()
     Scaffold(
-        topBar = { TopBar() },
+        topBar = { TopBar(activity) },
         bottomBar = { BottomNavigationBar(navController) },
         content = { padding ->
             Box(modifier = Modifier
@@ -88,16 +88,17 @@ fun Navigation(navController: NavHostController, activity: HomeActivity) {
 }
 
 @Composable
-    fun TopBar() {
+    fun TopBar(activity: HomeActivity) {
         TopAppBar(
             title = {
                 Text(
                     text = "Krasnale Wrocławskie",
                     fontSize = 18.sp,
                     color = Light_Purple,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.wrapContentSize(),
                     textAlign = TextAlign.Center
                 )
+                DropDownPanel(activity = activity)
             },
             backgroundColor = Dark_Purple,
         )

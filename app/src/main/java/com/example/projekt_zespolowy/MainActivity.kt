@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity() {
 
                         composable("profile"){
                             ProfileScreen(
+                                activity = this@MainActivity,
                                 userData = googleAuthUiClient.getSignedInUser(),
                                 onSignOut = {
                                     lifecycleScope.launch {
