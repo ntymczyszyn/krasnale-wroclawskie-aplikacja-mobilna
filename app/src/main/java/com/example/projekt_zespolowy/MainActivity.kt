@@ -41,6 +41,7 @@ import com.example.projekt_zespolowy.google.GoogleAuthUiClient
 import com.example.projekt_zespolowy.google.ProfileScreen
 import com.example.projekt_zespolowy.google.SignInScreen
 import com.example.projekt_zespolowy.google.SignInViewModel
+import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.google.android.gms.auth.api.identity.Identity
 import kotlinx.coroutines.launch
 
@@ -56,10 +57,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ProjektzespolowyTheme {
-               //StartScreen()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Light_Purple.copy(0.1f)
                 ){
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "sign_in" ){
@@ -134,59 +134,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-            }
-        }
-    }
-
-
-    @Composable
-    private fun StartScreen() {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-
-                ){
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.Center
-                ){
-                    Text("Witaj w aplikacji Krasnale Wrocławskie!",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.Black)
-                }
-                Spacer(modifier = Modifier.padding(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ){
-                    Text("Wyszukuj krasnale w mieście Wrocław",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Black)
-                }
-                Spacer(modifier = Modifier.padding(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ){
-                    Button(
-                        onClick = {
-                            val navigate = Intent(this@MainActivity, HomeActivity::class.java)
-                            startActivity(navigate)
-                        }
-                    ) {
-                        Text("Zaczynajmy!")
-                    }
-                }
             }
         }
     }
