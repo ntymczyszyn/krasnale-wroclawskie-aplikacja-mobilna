@@ -39,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -80,7 +81,10 @@ import com.example.projekt_zespolowy.data.Dwarfs
 import com.example.projekt_zespolowy.data.DwarfsDatabase
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.ProjektzespolowyTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -95,6 +99,10 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+    }
+}
 class HomeActivity : ComponentActivity() {
     //Android Client ID - 492039840169-k15asq5q9pi8p1n8et6gvsg0tbo9j01o.apps.googleusercontent.com
     //Web Client ID - 492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com
@@ -114,6 +122,8 @@ class HomeActivity : ComponentActivity() {
         // *TODO* Do I need to migrate somehow here?
         database = Room.databaseBuilder(
             applicationContext, DwarfsDatabase::class.java, "dwarfs_database")
+            //.fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_1_2)
             .build()
 
         setContent {
@@ -182,6 +192,7 @@ class HomeActivity : ComponentActivity() {
             .build()
 
         val request = Request.Builder()
+            //.url("http://127.0.0.1:8000/image/upload")
             .url("https://krasnalewroclawskie.azurewebsites.net/image/upload")
             .header("Content-Type", requestBody.contentType().toString())
             .post(requestBody)
@@ -231,11 +242,21 @@ class HomeActivity : ComponentActivity() {
         val uploadedDwarf = name?.let { Dwarfs(name = it, date_stamp = Date(), count = 1) }
         try {
             uploadedDwarf?.let {
-                database.dwarfs().insert(it)
-                runOnUiThread{
-                    Toast.makeText(this, "Saved to database", Toast.LENGTH_SHORT).show()
+                if(database.dwarfs().dwarfExists(it.name)){
+                    database.dwarfs().updateDwarfCount(it.name)
+                    runOnUiThread{
+                        Toast.makeText(this, "\nUpdated database", Toast.LENGTH_SHORT).show()
+                    }
+                    messageDwarf.value +=  "Updated database"
+                    return
                 }
-                messageDwarf.value +=  "Added to database"
+                else{
+                    database.dwarfs().insert(it)
+                    runOnUiThread{
+                        Toast.makeText(this, "Saved to database", Toast.LENGTH_SHORT).show()
+                    }
+                    messageDwarf.value +=  "\nAdded to database"
+                }
             }
         } catch (e: Exception) {
             Log.e("Database Insertion", "Error inserting dwarf", e)
@@ -246,6 +267,13 @@ class HomeActivity : ComponentActivity() {
     fun getDwarfsList(): Flow<List<Dwarfs>> {
         return database.dwarfs().getAllByName()
     }
+
+    fun deleteDwarf(dwarf: Dwarfs) {
+        CoroutineScope(Dispatchers.IO).launch {
+            database.dwarfs().delete(dwarf)
+        }
+    }
+
 }
 
 @SuppressLint("SimpleDateFormat")
@@ -290,18 +318,20 @@ fun HomeScreen(activity: HomeActivity) {
                         } else {
                             activity.requestCameraPermission()
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Light_Purple)
                 ) {
-                    Text("Take a picture")
+                    Text("Zrób zdjęcie")
                 }
 
                 Button(
                     onClick = {
                         galleryLauncher.launch("image/*")
                         activity.responseInfo.value = false
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Light_Purple)
                 ) {
-                    Text("Choose from gallery")
+                    Text("Wybierz z galerii")
                 }
             }
 
@@ -417,7 +447,7 @@ fun DropDownPanel(activity: HomeActivity) {
             onDismissRequest = { expanded = false }
         ) {
             DropdownMenuItem(
-                text = { Text("Log out") },
+                text = { Text("Wyloguj") },
                 onClick = {
                     val navigate = Intent(activity, MainActivity::class.java)
                     activity.startActivity(navigate)

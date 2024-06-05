@@ -54,25 +54,6 @@ import com.example.projekt_zespolowy.ui.theme.Dark_Purple
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 import com.example.projekt_zespolowy.ui.theme.White
 @Composable
-fun MainScreen(activity: HomeActivity) {
-    val navController = rememberNavController()
-    Scaffold(
-        topBar = { TopBar(activity) },
-        bottomBar = { BottomNavigationBar(navController) },
-        content = { padding ->
-            Box(modifier = Modifier
-                .padding(padding)
-                .background(Light_Purple.copy(alpha = 0.4f))
-            ) {
-                Navigation(navController = navController, activity = activity)
-            }
-        },
-        modifier = Modifier
-            .fillMaxSize()
-    )
-}
-
-@Composable
 fun Navigation(navController: NavHostController, activity: HomeActivity) {
     NavHost(navController, startDestination = NavigationItem.Home.route) {
         composable(NavigationItem.Home.route) {
@@ -82,27 +63,27 @@ fun Navigation(navController: NavHostController, activity: HomeActivity) {
             HistoryScreen(activity)
         }
         composable(NavigationItem.Badges.route) {
-            BadgesScreen()
+            BadgesScreen(activity)
         }
     }
 }
 
 @Composable
-    fun TopBar(activity: HomeActivity) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Krasnale Wrocławskie",
-                    fontSize = 18.sp,
-                    color = Light_Purple,
-                    modifier = Modifier.wrapContentSize(),
-                    textAlign = TextAlign.Center
-                )
-                DropDownPanel(activity = activity)
-            },
-            backgroundColor = Dark_Purple,
-        )
-    }
+fun TopBar(activity: HomeActivity) {
+    TopAppBar(
+        title = {
+            Text(
+                text = "Krasnale Wrocławskie",
+                fontSize = 18.sp,
+                color = Light_Purple,
+                modifier = Modifier.wrapContentSize(),
+                textAlign = TextAlign.Center
+            )
+            DropDownPanel(activity = activity)
+        },
+        backgroundColor = Dark_Purple,
+    )
+}
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
@@ -149,4 +130,23 @@ fun BottomNavigationBar(navController: NavController) {
         }
     }
 }
+@Composable
+fun MainScreen(activity: HomeActivity) {
+    val navController = rememberNavController()
+    Scaffold(
+        topBar = { TopBar(activity) },
+        bottomBar = { BottomNavigationBar(navController) },
+        content = { padding ->
+            Box(modifier = Modifier
+                .padding(padding)
+                .background(Light_Purple.copy(alpha = 0.4f))
+            ) {
+                Navigation(navController = navController, activity = activity)
+            }
+        },
+        modifier = Modifier
+            .fillMaxSize()
+    )
+}
+
 

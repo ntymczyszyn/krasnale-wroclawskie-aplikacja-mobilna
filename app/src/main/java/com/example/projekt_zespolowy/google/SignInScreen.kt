@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.example.projekt_zespolowy.R
+import com.example.projekt_zespolowy.ui.theme.Dark_Purple
+import com.example.projekt_zespolowy.ui.theme.Light_Purple
+import com.example.projekt_zespolowy.ui.theme.Pink40
 
 @Composable
 fun SignInScreen(
@@ -36,7 +43,7 @@ fun SignInScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Pink40),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -65,12 +72,21 @@ fun SignInScreen(
                     color = Color.Black)
             }
             Spacer(modifier = Modifier.padding(16.dp))
+            Icon(
+                painterResource(id = R.drawable.start_page_dwarf),
+                contentDescription = "Star Page Dwarf",
+                tint = Dark_Purple,
+            )
+            Spacer(modifier = Modifier.padding(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ){
-                Button(onClick = onSignInClik) {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = Light_Purple),
+                    onClick = onSignInClik
+                ) {
                     Text(text = "Zaloguj się")
                 }
             }
