@@ -45,6 +45,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -444,10 +445,14 @@ fun DropDownPanel(activity: HomeActivity) {
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .background(color = Dark_Purple)
+                .padding(16.dp)
+                .wrapContentSize(Alignment.Center)
         ) {
             DropdownMenuItem(
-                text = { Text("Wyloguj") },
+                text = { Text(text ="WYLOGUJ", style = MaterialTheme.typography.bodyLarge) },
                 onClick = {
                     val navigate = Intent(activity, MainActivity::class.java)
                     activity.startActivity(navigate)

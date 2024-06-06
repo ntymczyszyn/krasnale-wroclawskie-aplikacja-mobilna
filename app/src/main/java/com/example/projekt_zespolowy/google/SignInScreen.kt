@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.projekt_zespolowy.R
 import com.example.projekt_zespolowy.ui.theme.Dark_Purple
@@ -57,8 +58,19 @@ fun SignInScreen(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.Center
             ){
-                Text("Witaj w aplikacji Krasnale Wrocławskie!",
-                    style = MaterialTheme.typography.titleLarge,
+                Text("Witaj w aplikacji",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Color.Black)
+            }
+            Spacer(modifier = Modifier.padding(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.Center
+            ){
+                Text("Krasnale Wrocławskie!",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = Color.Black)
             }
             Spacer(modifier = Modifier.padding(16.dp))
