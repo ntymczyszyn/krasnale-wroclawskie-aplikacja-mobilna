@@ -65,7 +65,7 @@ fun ProfileScreen(
         if(userData?.username != null){
             Text(text = userData.username,
                 textAlign = TextAlign.Center,
-                fontSize = 36.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Light_Purple
             )
