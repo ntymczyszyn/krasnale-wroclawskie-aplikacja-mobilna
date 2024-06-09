@@ -2,6 +2,7 @@ package com.example.projekt_zespolowy
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -88,6 +89,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -99,6 +101,17 @@ import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
+import android.graphics.Bitmap
+import android.util.Base64
+import android.widget.ProgressBar
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType
+import java.io.ByteArrayOutputStream
+import java.io.*
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -118,6 +131,8 @@ class HomeActivity : ComponentActivity() {
         private const val REQUEST_CAMERA_PERMISSION = 123
     }
 
+    lateinit var progressDialog: AlertDialog
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // *TODO* Do I need to migrate somehow here?
@@ -126,6 +141,14 @@ class HomeActivity : ComponentActivity() {
             //.fallbackToDestructiveMigration()
             .addMigrations(MIGRATION_1_2)
             .build()
+
+        val progressBar = ProgressBar(this)
+        val builder = AlertDialog.Builder(this).apply {
+            setTitle("Proszę czekać rozpoznajemy twojego krasnala...")
+            setCancelable(false)
+            setView(progressBar)
+        }
+        progressDialog = builder.create()
 
         setContent {
             ProjektzespolowyTheme {
@@ -172,62 +195,76 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
-    fun uploadImage(uri: Uri) {
+    suspend fun uploadImage(uri: Uri) = withContext(Dispatchers.IO) {
         if (!isNetworkAvailable()) {
-            Toast.makeText(this, "No internet connection", Toast.LENGTH_LONG).show()
-            return
+            Toast.makeText(this@HomeActivity, "No internet connection", Toast.LENGTH_LONG).show()
+            return@withContext
         }
-
-        val client = OkHttpClient()
 
         val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
 
         if (bytes.isEmpty()) {
-            Log.d("TEST_WYSYLANIA_ERROR", "Image file is empty")
-            return
+            Log.d("UPLOAD_ERROR", "Image file is empty")
+            return@withContext
         }
 
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("file", "image.jpg", RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes))
-            .build()
+        val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
 
-        val request = Request.Builder()
-            //.url("http://127.0.0.1:8000/image/upload")
-            .url("https://krasnalewroclawskie.azurewebsites.net/image/upload")
-            .header("Content-Type", requestBody.contentType().toString())
-            .post(requestBody)
-            .build()
+        val API_KEY = "9zbTgwMWBvZgonLi9Jla"
+        val MODEL_ENDPOINT = "krasnele_wro-g63lz/2"
+        val uploadURL = "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY + "&name=YOUR_IMAGE.jpg";
 
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
-                Log.d("TEST_WYSYLANIA_ERROR", "Upload failed: ${e.message}")
-                runOnUiThread {
-                    Toast.makeText(this@HomeActivity, "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+        var connection: HttpURLConnection? = null
+        try {
+            withContext(Dispatchers.Main) {
+                progressDialog.show()
             }
 
-            override fun onResponse(call: Call, response: Response) {
-                if (!response.isSuccessful) {
-                    Log.d("TEST_WYSYLANIA_ERROR", "Response Code: ${response.code}, Response Message: ${response.message}")
-                    throw IOException("Unexpected code $response")
-                }
+            val url = URL(uploadURL)
+            connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.setRequestProperty("Content-Length", Integer.toString(encodedFile.toByteArray().size))
+            connection.setRequestProperty("Content-Language", "en-US")
+            connection.useCaches = false
+            connection.doOutput = true
 
-                val responseBody = response.body?.string()
-                val json = responseBody?.let { JSONObject(it) }
-                messageDwarf.value = json?.getString("message")
-                Log.d("TEST_WYSYLANIA", "Upload successful: ${messageDwarf.value}")
+            //Send request
+            val wr = DataOutputStream(connection.outputStream)
+            wr.writeBytes(encodedFile)
+            wr.close()
 
-                saveToDatabase(message = messageDwarf.value)
-
-//                runOnUiThread {
-//                    Toast.makeText(this@HomeActivity, messageDwarf.value, Toast.LENGTH_LONG).show()
-//                }
+            // Get Response
+            val stream = connection.inputStream
+            val reader = BufferedReader(InputStreamReader(stream))
+            var line: String?
+            val responseStringBuilder = StringBuilder()
+            while (reader.readLine().also { line = it } != null) {
+                responseStringBuilder.append(line)
             }
-        })
+            reader.close()
+
+            val jsonResponse = JSONObject(responseStringBuilder.toString())
+            val predictions = jsonResponse.getJSONArray("predictions")
+            messageDwarf.value = predictions.getJSONObject(0).getString("class")
+
+            withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
+            }
+
+            Log.d("TEST_ROBOFLOW", "Class: ${ messageDwarf.value}")
+
+            saveToDatabase(message = messageDwarf.value)
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@HomeActivity,  messageDwarf.value, Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            connection?.disconnect()
+        }
     }
-
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
@@ -369,11 +406,12 @@ fun HomeScreen(activity: HomeActivity) {
                             ) {
                                 Button(
                                     onClick = {
-                                        activity.imageUri.value?.let { uri ->
-                                            activity.responseInfo.value = true
-                                            activity.uploadImage(uri)
+                                        activity.responseInfo.value = true
+                                        CoroutineScope(Dispatchers.IO).launch {
+                                            activity.uploadImage(activity.imageUri.value!!)
                                         }
-                                    }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Light_Purple)
                                 ) {
                                     Text("Upload image")
                                 }
