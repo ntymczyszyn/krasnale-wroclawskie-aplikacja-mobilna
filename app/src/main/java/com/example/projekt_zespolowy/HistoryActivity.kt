@@ -50,6 +50,7 @@ fun HistoryScreen(activity: HomeActivity) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Absolute.SpaceBetween,
                     ) {
+                        Spacer(modifier = Modifier.width(2.dp))
                         Column(
                             verticalArrangement = Arrangement.Center,
                         ) {
@@ -69,6 +70,7 @@ fun HistoryScreen(activity: HomeActivity) {
                                 color = Dark_Purple
                             )
                         }
+                        Spacer(modifier = Modifier.width(2.dp))
                     }
                 }
             }
@@ -106,30 +108,29 @@ fun DwarfCard(dwarf: Dwarfs,
         modifier = Modifier
             .background(color = Dark_Purple.copy(alpha = 0.1f))
             .fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ){
-        Column{
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ){
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        text = dwarf.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Dark_Purple
-                    )
-                }
-                Column(verticalArrangement = Arrangement.Center,) {
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Dark_Purple.copy(alpha = 0.6f)
-                    )
-                }
+        Column(
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Row {
+                Spacer(modifier = Modifier.width(15.dp))
+                Text(
+                    text = dwarf.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Dark_Purple
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.Center,) {
+            Row {
+                Text(
+                    text = date,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Dark_Purple.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
             }
         }
     }

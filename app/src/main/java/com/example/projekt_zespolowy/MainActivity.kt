@@ -70,8 +70,6 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(key1 = Unit) {
                                 if(googleAuthUiClient.getSignedInUser() != null){
                                     navController.navigate("profile")
-//                                    val navigate = Intent(this@MainActivity, HomeActivity::class.java)
-//                                    startActivity(navigate)
                                 }
                             }
 

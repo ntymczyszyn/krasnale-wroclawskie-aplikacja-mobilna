@@ -24,7 +24,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.projekt_zespolowy.data.Dwarfs
 import com.example.projekt_zespolowy.ui.BadgesItem
-import com.example.projekt_zespolowy.ui.NavigationItem
 import com.example.projekt_zespolowy.ui.theme.Dark_Purple
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
 
@@ -32,9 +31,11 @@ import com.example.projekt_zespolowy.ui.theme.Light_Purple
 fun BadgesScreen(activity: HomeActivity) {
     val dwarfsList by activity.getDwarfsList().collectAsState(initial = emptyList())
     val items = listOf(
-        BadgesItem.firstRow,
-        BadgesItem.secondRow,
-        BadgesItem.thirdRow
+        BadgesItem.FirstRow,
+        BadgesItem.SecondRow,
+        BadgesItem.ThirdRow,
+        BadgesItem.FourthRow,
+        BadgesItem.FifthRow
     )
     Box(
         modifier = Modifier
