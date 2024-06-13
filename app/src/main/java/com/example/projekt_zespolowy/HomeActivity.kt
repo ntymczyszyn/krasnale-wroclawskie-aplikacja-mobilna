@@ -245,8 +245,7 @@ class HomeActivity : ComponentActivity() {
 
             val jsonResponse = JSONObject(responseStringBuilder.toString())
             val predictions = jsonResponse.getJSONArray("predictions")
-            messageDwarf.value = predictions.getJSONObject(0).getString("class")
-
+            messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
             withContext(Dispatchers.Main) {
                 progressDialog.dismiss()
             }
@@ -255,9 +254,6 @@ class HomeActivity : ComponentActivity() {
 
             saveToDatabase(message = messageDwarf.value)
 
-            withContext(Dispatchers.Main) {
-                Toast.makeText(this@HomeActivity,  messageDwarf.value, Toast.LENGTH_LONG).show()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
