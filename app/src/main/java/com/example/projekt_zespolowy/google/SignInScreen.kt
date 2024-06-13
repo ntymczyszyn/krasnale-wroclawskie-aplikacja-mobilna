@@ -1,5 +1,6 @@
 package com.example.projekt_zespolowy.google
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.startActivity
+import com.example.projekt_zespolowy.HomeActivity
+import com.example.projekt_zespolowy.MainActivity
 import com.example.projekt_zespolowy.R
 import com.example.projekt_zespolowy.ui.theme.Dark_Purple
 import com.example.projekt_zespolowy.ui.theme.Light_Purple
@@ -100,6 +104,22 @@ fun SignInScreen(
                     onClick = onSignInClik
                 ) {
                     Text(text = "Zaloguj się")
+                }
+            }
+            Spacer(modifier = Modifier.padding(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ){
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = Light_Purple),
+                    onClick = {
+                        val navigate = Intent((context as MainActivity), HomeActivity::class.java)
+                        (context as MainActivity).startActivity(navigate)
+                    }
+                ) {
+                    Text(text = "Kontunuuj bez logowania")
                 }
             }
         }

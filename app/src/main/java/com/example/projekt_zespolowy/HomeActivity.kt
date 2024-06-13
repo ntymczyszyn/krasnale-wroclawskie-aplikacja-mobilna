@@ -135,7 +135,6 @@ class HomeActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // *TODO* Do I need to migrate somehow here?
         database = Room.databaseBuilder(
             applicationContext, DwarfsDatabase::class.java, "dwarfs_database")
             //.fallbackToDestructiveMigration()
@@ -272,46 +271,26 @@ class HomeActivity : ComponentActivity() {
     }
 
     fun saveToDatabase(message: String?){
-//        // Parse the JSON string
-//        val jsonObject = message?.let { JSONObject(it) }
-//        val name = jsonObject?.getString("name")
-
         val name = message
         val uploadedDwarf = name?.let { Dwarfs(name = it, date_stamp = Date(), count = 1) }
         try {
             uploadedDwarf?.let {
                 if(database.dwarfs().dwarfExists(it.name)){
                     database.dwarfs().updateDwarfCount(it.name)
-                    runOnUiThread{
-                        Toast.makeText(this, "\nUpdated database", Toast.LENGTH_SHORT).show()
-                    }
-                    messageDwarf.value +=  "Updated database"
                     return
                 }
                 else{
                     database.dwarfs().insert(it)
-                    runOnUiThread{
-                        Toast.makeText(this, "Saved to database", Toast.LENGTH_SHORT).show()
-                    }
-                    messageDwarf.value +=  "\nAdded to database"
                 }
             }
         } catch (e: Exception) {
             Log.e("Database Insertion", "Error inserting dwarf", e)
         }
-
     }
 
     fun getDwarfsList(): Flow<List<Dwarfs>> {
         return database.dwarfs().getAllByName()
     }
-
-    fun deleteDwarf(dwarf: Dwarfs) {
-        CoroutineScope(Dispatchers.IO).launch {
-            database.dwarfs().delete(dwarf)
-        }
-    }
-
 }
 
 @SuppressLint("SimpleDateFormat")
@@ -406,6 +385,7 @@ fun HomeScreen(activity: HomeActivity) {
                             ) {
                                 Button(
                                     onClick = {
+                                        activity.messageDwarf.value = ""
                                         activity.responseInfo.value = true
                                         CoroutineScope(Dispatchers.IO).launch {
                                             activity.uploadImage(activity.imageUri.value!!)
@@ -425,27 +405,6 @@ fun HomeScreen(activity: HomeActivity) {
                             ){
                                 Text(activity.messageDwarf.value.toString())
                             }
-                            // *TODO* when response returned is corect uncoment this
-//                val jsonObject = activity.messageDwarf?.let { JSONObject(it) }
-//                val name = jsonObject?.getString("name")
-//                val location = jsonObject?.getString("location")
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.SpaceBetween
-//                ) {
-//                    if (name != null) {
-//                        Text(name, modifier = Modifier.padding(16.dp))
-//                    }
-//                }
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.SpaceBetween
-//                ) {
-//                    if (location != null) {
-//                        // *TODO* Check if it is multiline and if not change this
-//                        Text(location, modifier = Modifier.padding(16.dp).wrapContentSize())
-//                    }
-//                }
                         }
                     }
                 }
