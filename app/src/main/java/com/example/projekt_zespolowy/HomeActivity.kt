@@ -104,7 +104,10 @@ import java.util.Date
 import android.graphics.Bitmap
 import android.util.Base64
 import android.widget.ProgressBar
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import okhttp3.MediaType
 import java.io.ByteArrayOutputStream
 import java.io.*
@@ -194,9 +197,15 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
+    private var uploadJob: Job? = null
+
     suspend fun uploadImage(uri: Uri) = withContext(Dispatchers.IO) {
+        uploadJob?.cancel()
+
         if (!isNetworkAvailable()) {
-            Toast.makeText(this@HomeActivity, "No internet connection", Toast.LENGTH_LONG).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@HomeActivity, "No internet connection", Toast.LENGTH_LONG).show()
+            }
             return@withContext
         }
 
@@ -207,58 +216,100 @@ class HomeActivity : ComponentActivity() {
             return@withContext
         }
 
-        val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
+        uploadJob = CoroutineScope(Dispatchers.IO).launch {
+            val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
 
-        val API_KEY = "9zbTgwMWBvZgonLi9Jla"
-        val MODEL_ENDPOINT = "krasnele_wro-g63lz/2"
-        val uploadURL = "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY + "&name=YOUR_IMAGE.jpg";
+            val API_KEY = "9zbTgwMWBvZgonLi9Jla"
+            val MODEL_ENDPOINT = "krasnele_wro-g63lz/2"
+            val uploadURL =
+                "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY + "&name=YOUR_IMAGE.jpg";
 
-        var connection: HttpURLConnection? = null
-        try {
-            withContext(Dispatchers.Main) {
-                progressDialog.show()
+            var connection: HttpURLConnection? = null
+            try {
+                withContext(Dispatchers.Main) {
+                    progressDialog.show()
+                }
+
+                val startTime = System.currentTimeMillis()
+
+                // Timeout block
+                withTimeout(30_000) { // 30 seconds
+                    val url = URL(uploadURL)
+                    connection = url.openConnection() as HttpURLConnection
+                    connection!!.requestMethod = "POST"
+                    connection!!.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                    connection!!.setRequestProperty("Content-Length", encodedFile.toByteArray().size.toString())
+                    connection!!.setRequestProperty("Content-Language", "en-US")
+                    connection!!.useCaches = false
+                    connection!!.doOutput = true
+
+                    // Send request
+                    val wr = DataOutputStream(connection!!.outputStream)
+                    wr.writeBytes(encodedFile)
+                    wr.close()
+
+                    // Get Response
+                    val stream = connection!!.inputStream
+                    val reader = BufferedReader(InputStreamReader(stream))
+                    val responseStringBuilder = StringBuilder()
+                    reader.use { rdr ->
+                        rdr.lineSequence().forEach { responseStringBuilder.append(it) }
+                    }
+
+                    val endTime = System.currentTimeMillis()
+
+                    val jsonResponse = JSONObject(responseStringBuilder.toString())
+                    val predictions = jsonResponse.getJSONArray("predictions")
+                    messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+
+                    val duration = (endTime - startTime) / 1000.0
+
+                    withContext(Dispatchers.Main) {
+                        progressDialog.dismiss()
+                        Toast.makeText(
+                            this@HomeActivity,
+                            "Response time: $duration s",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
+                    Log.d("TEST_ROBOFLOW", "Response time: $duration s")
+                    Log.d("TEST_ROBOFLOW", "Class: ${messageDwarf.value}")
+
+                    saveToDatabase(message = messageDwarf.value)
+                }
+            } catch (e: TimeoutCancellationException) {
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    Toast.makeText(
+                        this@HomeActivity,
+                        "Upload timed out after 30 seconds.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                Log.e("UPLOAD_ERROR", "Upload timed out", e)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    Toast.makeText(
+                        this@HomeActivity,
+                        "Upload failed: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                Log.e("UPLOAD_ERROR", "Upload failed", e)
+            } finally {
+                connection?.disconnect()
             }
-
-            val url = URL(uploadURL)
-            connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            connection.setRequestProperty("Content-Length", Integer.toString(encodedFile.toByteArray().size))
-            connection.setRequestProperty("Content-Language", "en-US")
-            connection.useCaches = false
-            connection.doOutput = true
-
-            //Send request
-            val wr = DataOutputStream(connection.outputStream)
-            wr.writeBytes(encodedFile)
-            wr.close()
-
-            // Get Response
-            val stream = connection.inputStream
-            val reader = BufferedReader(InputStreamReader(stream))
-            var line: String?
-            val responseStringBuilder = StringBuilder()
-            while (reader.readLine().also { line = it } != null) {
-                responseStringBuilder.append(line)
-            }
-            reader.close()
-
-            val jsonResponse = JSONObject(responseStringBuilder.toString())
-            val predictions = jsonResponse.getJSONArray("predictions")
-            messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
-            withContext(Dispatchers.Main) {
-                progressDialog.dismiss()
-            }
-
-            Log.d("TEST_ROBOFLOW", "Class: ${ messageDwarf.value}")
-
-            saveToDatabase(message = messageDwarf.value)
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            connection?.disconnect()
         }
+    }
+
+    override fun onBackPressed() {
+        // Cancel the job
+        uploadJob?.cancel()
+        // Dismiss the progress dialog
+        progressDialog.dismiss()
+        super.onBackPressed()
     }
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
