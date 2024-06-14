@@ -282,6 +282,7 @@ class HomeActivity : ComponentActivity() {
                     val predictions = jsonResponse.getJSONArray("predictions")
                     if (predictions.length() > 0) {
                         messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                        saveToDatabase(message = messageDwarf.value)
                     } else {
                         // Handle the case where the "predictions" array is empty
                         messageDwarf.value = "Nie odnaleziono krasnala"
@@ -301,7 +302,7 @@ class HomeActivity : ComponentActivity() {
                     Log.d("TEST_ROBOFLOW", "Response time: $duration s")
                     Log.d("TEST_ROBOFLOW", "Class: ${messageDwarf.value}")
 
-                    saveToDatabase(message = messageDwarf.value)
+
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
@@ -362,6 +363,12 @@ class HomeActivity : ComponentActivity() {
 
     fun getDwarfsList(): Flow<List<Dwarfs>> {
         return database.dwarfs().getAllByDate()
+    }
+
+    fun deleteDwarf(dwarf: Dwarfs) {
+        CoroutineScope(Dispatchers.IO).launch {
+            database.dwarfs().delete(dwarf)
+        }
     }
 }
 
