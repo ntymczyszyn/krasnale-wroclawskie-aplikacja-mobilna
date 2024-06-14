@@ -16,7 +16,6 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,15 +28,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
-import androidx.compose.material.TopAppBar
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,22 +52,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.startActivity
 import androidx.core.content.FileProvider
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.example.projekt_zespolowy.ui.NavigationItem
 import com.example.projekt_zespolowy.ui.theme.Dark_Purple
-import androidx.lifecycle.LiveData
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -120,6 +101,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.math.max
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -227,8 +209,33 @@ class HomeActivity : ComponentActivity() {
             }
             return@withContext
         }
-        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        contentResolver.openInputStream(uri)?.use { inputStream ->
+            BitmapFactory.decodeStream(inputStream, null, options)
+        }
+        val originalWidth = options.outWidth
+        val originalHeight = options.outHeight
 
+        // Specify the desired dimensions
+        val desiredSize = 1200 // 2400   -> Adjust the desired size as needed
+
+        // Calculate the inSampleSize
+        options.inSampleSize = max(originalWidth, originalHeight)/desiredSize
+        options.inJustDecodeBounds = false
+
+        // Decode the image with the calculated inSampleSize
+        val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
+            BitmapFactory.decodeStream(inputStream, null, options)
+        }
+
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream) // Compress the image
+        val bytes = byteArrayOutputStream.toByteArray()
+
+
+        // ==================
         if (bytes.isEmpty()) {
             Log.d("UPLOAD_ERROR", "Image file is empty")
             return@withContext
@@ -280,8 +287,11 @@ class HomeActivity : ComponentActivity() {
 
                     val jsonResponse = JSONObject(responseStringBuilder.toString())
                     val predictions = jsonResponse.getJSONArray("predictions")
+                    Log.d("Response", "Response: $predictions")
                     if (predictions.length() > 0) {
                         messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                        // TODO: check if slepak, gluchak, wskers -> pełna nazwa
+                        saveToDatabase(message = messageDwarf.value)
                     } else {
                         // Handle the case where the "predictions" array is empty
                         messageDwarf.value = "Nie odnaleziono krasnala"
@@ -301,7 +311,7 @@ class HomeActivity : ComponentActivity() {
                     Log.d("TEST_ROBOFLOW", "Response time: $duration s")
                     Log.d("TEST_ROBOFLOW", "Class: ${messageDwarf.value}")
 
-                    saveToDatabase(message = messageDwarf.value)
+
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
@@ -330,11 +340,11 @@ class HomeActivity : ComponentActivity() {
     }
 
     override fun onBackPressed() {
+        super.onBackPressed()
         // Cancel the job
         uploadJob?.cancel()
         // Dismiss the progress dialog
         progressDialog.dismiss()
-        super.onBackPressed()
     }
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -362,6 +372,12 @@ class HomeActivity : ComponentActivity() {
 
     fun getDwarfsList(): Flow<List<Dwarfs>> {
         return database.dwarfs().getAllByDate()
+    }
+
+    fun deleteDwarf(dwarf: Dwarfs) {
+        CoroutineScope(Dispatchers.IO).launch {
+            database.dwarfs().delete(dwarf)
+        }
     }
 }
 
@@ -428,44 +444,18 @@ fun HomeScreen(activity: HomeActivity) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(8.dp)
                         .background(color = Color(R.color.Light_Red)),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ){
-                    item{
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-                    item{
+                    item {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth(fraction = 0.7f),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
-                                val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
-                                Image(
-                                    bitmap = bitmap,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .rotate(rotationDegrees.toFloat())
-                                        .padding(16.dp),
-                                    contentScale = ContentScale.FillWidth
-                                )
-                            }
-                        }
-                    }
-                    if(!activity.responseInfo.value) {
-                        item{
-                            Spacer(modifier = Modifier.height(15.dp))
-                        }
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ){
+                            if(!activity.responseInfo.value) {
                                 Button(
                                     onClick = {
                                         activity.messageDwarf.value = ""
@@ -479,16 +469,27 @@ fun HomeScreen(activity: HomeActivity) {
                                     Text("Upload image")
                                 }
                             }
+                            else{
+                                Text(activity.messageDwarf.value.toString())
+                            }
                         }
                     }
-                    else{
-                        item{
-                            Row(modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                horizontalArrangement = Arrangement.Center
-                            ){
-                                Text(activity.messageDwarf.value.toString())
+                    item{
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = 1f)
+                        ) {
+                            decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
+                                val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .rotate(rotationDegrees.toFloat())
+                                        .padding(8.dp),
+                                    contentScale = ContentScale.FillWidth
+                                )
                             }
                         }
                     }
@@ -534,7 +535,7 @@ fun DropDownPanel(activity: HomeActivity) {
                 .wrapContentSize(Alignment.Center)
         ) {
             DropdownMenuItem(
-                text = { Text(text ="WYLOGUJ", style = MaterialTheme.typography.bodyLarge) },
+                text = { Text(text ="Wyloguj", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
                 onClick = {
                     val navigate = Intent(activity, MainActivity::class.java)
                     activity.startActivity(navigate)

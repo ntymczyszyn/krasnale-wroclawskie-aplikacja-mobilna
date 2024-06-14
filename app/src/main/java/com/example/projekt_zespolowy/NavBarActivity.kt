@@ -33,7 +33,9 @@ import com.example.projekt_zespolowy.ui.theme.ProjektzespolowyTheme
 import com.example.projekt_zespolowy.ui.theme.Purple40
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -79,6 +81,7 @@ fun TopBar(activity: HomeActivity) {
                 modifier = Modifier.wrapContentSize(),
                 textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.width(120.dp))
             DropDownPanel(activity = activity)
         },
         backgroundColor = Dark_Purple,
