@@ -123,15 +123,6 @@ fun DwarfCard(dwarf: Dwarfs,
                 )
             }
         }
-        Column(){
-            Button(
-                onClick = {
-                    activity.deleteDwarf(dwarf)
-                }
-            ){
-                Text("usun")
-            }
-        }
         Column(verticalArrangement = Arrangement.Center,) {
             Row {
                 Text(

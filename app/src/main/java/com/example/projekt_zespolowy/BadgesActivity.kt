@@ -35,7 +35,7 @@ fun BadgesScreen(activity: HomeActivity) {
         BadgesItem.SecondRow,
         BadgesItem.ThirdRow,
         BadgesItem.FourthRow,
-        BadgesItem.FifthRow
+        // BadgesItem.FifthRow
     )
     Box(
         modifier = Modifier
