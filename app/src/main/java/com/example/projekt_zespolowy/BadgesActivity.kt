@@ -87,7 +87,7 @@ fun BadgesItems(
                 painterResource(id = item.icon1),
                 contentDescription = "Dwarfs Badge 1",
                 tint = if (dwarfsList.count() >= item.value1) Dark_Purple else Dark_Purple.copy(
-                    0.4f
+                    0.3f
                 ),
             )
             if (item.value1 == 1){
@@ -109,7 +109,7 @@ fun BadgesItems(
                 painterResource(id = item.icon2),
                 contentDescription = "Dwarf Badge 2",
                 tint = if (dwarfsList.count() >= item.value2) Dark_Purple else Dark_Purple.copy(
-                    0.4f
+                    0.3f
                 ),
             )
             Text(item.title2, style = MaterialTheme.typography.bodyMedium)

@@ -102,8 +102,13 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.util.Base64
 import android.widget.ProgressBar
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.rotate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -196,6 +201,20 @@ class HomeActivity : ComponentActivity() {
 
         }
     }
+    fun getRotationDegrees(context: Context, uri: Uri): Int {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val exifInterface = inputStream?.let { ExifInterface(it) }
+        val orientation = exifInterface?.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_UNDEFINED
+        )
+        return when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270
+            else -> 0
+        }
+    }
 
     private var uploadJob: Job? = null
 
@@ -208,7 +227,6 @@ class HomeActivity : ComponentActivity() {
             }
             return@withContext
         }
-
         val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
 
         if (bytes.isEmpty()) {
@@ -216,13 +234,15 @@ class HomeActivity : ComponentActivity() {
             return@withContext
         }
 
+        Log.e("Upload URI", "Uri: ${uri}")
+
         uploadJob = CoroutineScope(Dispatchers.IO).launch {
             val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
 
             val API_KEY = "9zbTgwMWBvZgonLi9Jla"
             val MODEL_ENDPOINT = "krasnele_wro-g63lz/2"
             val uploadURL =
-                "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY + "&name=YOUR_IMAGE.jpg";
+                "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY;
 
             var connection: HttpURLConnection? = null
             try {
@@ -242,7 +262,7 @@ class HomeActivity : ComponentActivity() {
                     connection!!.setRequestProperty("Content-Language", "en-US")
                     connection!!.useCaches = false
                     connection!!.doOutput = true
-
+                    Log.e("Upload URL", "Upload URL: ${uploadURL}")
                     // Send request
                     val wr = DataOutputStream(connection!!.outputStream)
                     wr.writeBytes(encodedFile)
@@ -260,7 +280,12 @@ class HomeActivity : ComponentActivity() {
 
                     val jsonResponse = JSONObject(responseStringBuilder.toString())
                     val predictions = jsonResponse.getJSONArray("predictions")
-                    messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                    if (predictions.length() > 0) {
+                        messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                    } else {
+                        // Handle the case where the "predictions" array is empty
+                        messageDwarf.value = "Nie odnaleziono krasnala"
+                    }
 
                     val duration = (endTime - startTime) / 1000.0
 
@@ -336,7 +361,7 @@ class HomeActivity : ComponentActivity() {
     }
 
     fun getDwarfsList(): Flow<List<Dwarfs>> {
-        return database.dwarfs().getAllByName()
+        return database.dwarfs().getAllByDate()
     }
 }
 
@@ -408,26 +433,37 @@ fun HomeScreen(activity: HomeActivity) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ){
                     item{
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                    item{
                         Row(
-                            modifier = Modifier.wrapContentSize(),
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = 0.7f),
                             verticalAlignment = Alignment.Top
                         ) {
-                            decodeBitmap(activity, activity.imageUri.value!!)?.let {
+                            decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
+                                val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
                                 Image(
-                                    bitmap = it,
+                                    bitmap = bitmap,
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .rotate(rotationDegrees.toFloat())
                                         .padding(16.dp),
-                                    contentScale = ContentScale.Fit
+                                    contentScale = ContentScale.FillWidth
                                 )
                             }
                         }
                     }
                     if(!activity.responseInfo.value) {
+                        item{
+                            Spacer(modifier = Modifier.height(15.dp))
+                        }
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 Button(
@@ -447,7 +483,9 @@ fun HomeScreen(activity: HomeActivity) {
                     }
                     else{
                         item{
-                            Row(modifier = Modifier.wrapContentSize(),
+                            Row(modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                 horizontalArrangement = Arrangement.Center
                             ){
                                 Text(activity.messageDwarf.value.toString())
