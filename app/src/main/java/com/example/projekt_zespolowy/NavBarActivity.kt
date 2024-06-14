@@ -144,6 +144,11 @@ fun MainScreen(activity: HomeActivity) {
         modifier = Modifier
             .fillMaxSize()
     )
+
+    ProgressDialog(
+        isVisible = activity.isProgressDialogVisible.value,
+        onCancel = { activity.cancelUpload() }
+    )
 }
 
 

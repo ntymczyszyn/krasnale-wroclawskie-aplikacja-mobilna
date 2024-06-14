@@ -2,7 +2,6 @@ package com.example.projekt_zespolowy
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -68,39 +67,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.FormBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
 import org.json.JSONObject
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.media.ExifInterface
 import android.util.Base64
 import android.widget.ProgressBar
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.draw.rotate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
-import okhttp3.MediaType
 import java.io.ByteArrayOutputStream
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import kotlin.math.max
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -121,7 +107,7 @@ class HomeActivity : ComponentActivity() {
         private const val REQUEST_CAMERA_PERMISSION = 123
     }
 
-    lateinit var progressDialog: AlertDialog
+    val isProgressDialogVisible = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,14 +116,6 @@ class HomeActivity : ComponentActivity() {
             //.fallbackToDestructiveMigration()
             .addMigrations(MIGRATION_1_2)
             .build()
-
-        val progressBar = ProgressBar(this)
-        val builder = AlertDialog.Builder(this).apply {
-            setTitle("Proszę czekać rozpoznajemy twojego krasnala...")
-            setCancelable(false)
-            setView(progressBar)
-        }
-        progressDialog = builder.create()
 
         setContent {
             ProjektzespolowyTheme {
@@ -218,24 +196,19 @@ class HomeActivity : ComponentActivity() {
         val originalWidth = options.outWidth
         val originalHeight = options.outHeight
 
-        // Specify the desired dimensions
         val desiredSize = 1200 // 2400   -> Adjust the desired size as needed
 
-        // Calculate the inSampleSize
         options.inSampleSize = max(originalWidth, originalHeight)/desiredSize
         options.inJustDecodeBounds = false
 
-        // Decode the image with the calculated inSampleSize
         val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
 
         val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream) // Compress the image
+        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream)
         val bytes = byteArrayOutputStream.toByteArray()
 
-
-        // ==================
         if (bytes.isEmpty()) {
             Log.d("UPLOAD_ERROR", "Image file is empty")
             return@withContext
@@ -254,10 +227,8 @@ class HomeActivity : ComponentActivity() {
             var connection: HttpURLConnection? = null
             try {
                 withContext(Dispatchers.Main) {
-                    progressDialog.show()
+                    isProgressDialogVisible.value = true
                 }
-
-                val startTime = System.currentTimeMillis()
 
                 // Timeout block
                 withTimeout(30_000) { // 30 seconds
@@ -269,7 +240,7 @@ class HomeActivity : ComponentActivity() {
                     connection!!.setRequestProperty("Content-Language", "en-US")
                     connection!!.useCaches = false
                     connection!!.doOutput = true
-                    Log.e("Upload URL", "Upload URL: ${uploadURL}")
+
                     // Send request
                     val wr = DataOutputStream(connection!!.outputStream)
                     wr.writeBytes(encodedFile)
@@ -283,39 +254,28 @@ class HomeActivity : ComponentActivity() {
                         rdr.lineSequence().forEach { responseStringBuilder.append(it) }
                     }
 
-                    val endTime = System.currentTimeMillis()
-
-                    val jsonResponse = JSONObject(responseStringBuilder.toString())
-                    val predictions = jsonResponse.getJSONArray("predictions")
-                    Log.d("Response", "Response: $predictions")
-                    if (predictions.length() > 0) {
-                        messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
-                        // TODO: check if slepak, gluchak, wskers -> pełna nazwa
-                        saveToDatabase(message = messageDwarf.value)
-                    } else {
-                        // Handle the case where the "predictions" array is empty
-                        messageDwarf.value = "Nie odnaleziono krasnala"
+                    if (isProgressDialogVisible.value){
+                        val jsonResponse = JSONObject(responseStringBuilder.toString())
+                        val predictions = jsonResponse.getJSONArray("predictions")
+                        Log.d("Response", "Response: $predictions")
+                        if (predictions.length() > 0) {
+                            messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                            // TODO: check if slepak, gluchak, wskers -> pełna nazwa
+                            saveToDatabase(message = messageDwarf.value)
+                        } else {
+                            messageDwarf.value = "Nie odnaleziono krasnala"
+                        }
                     }
-
-                    val duration = (endTime - startTime) / 1000.0
 
                     withContext(Dispatchers.Main) {
-                        progressDialog.dismiss()
-                        Toast.makeText(
-                            this@HomeActivity,
-                            "Response time: $duration s",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        isProgressDialogVisible.value = false
                     }
 
-                    Log.d("TEST_ROBOFLOW", "Response time: $duration s")
                     Log.d("TEST_ROBOFLOW", "Class: ${messageDwarf.value}")
-
-
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
-                    progressDialog.dismiss()
+                    isProgressDialogVisible.value = false
                     Toast.makeText(
                         this@HomeActivity,
                         "Upload timed out after 30 seconds.",
@@ -325,7 +285,7 @@ class HomeActivity : ComponentActivity() {
                 Log.e("UPLOAD_ERROR", "Upload timed out", e)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    progressDialog.dismiss()
+                    isProgressDialogVisible.value = false
                     Toast.makeText(
                         this@HomeActivity,
                         "Upload failed: ${e.message}",
@@ -338,14 +298,16 @@ class HomeActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun onBackPressed() {
-        super.onBackPressed()
-        // Cancel the job
+    fun cancelUpload() {
         uploadJob?.cancel()
-        // Dismiss the progress dialog
-        progressDialog.dismiss()
+        uploadJob = null // Clear the job reference
+        CoroutineScope(Dispatchers.Main).launch {
+            isProgressDialogVisible.value = false
+            Toast.makeText(this@HomeActivity, "Upload canceled", Toast.LENGTH_SHORT).show()
+        }
     }
+
+
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
@@ -542,6 +504,33 @@ fun DropDownPanel(activity: HomeActivity) {
                 }
             )
 
+        }
+    }
+}
+@Composable
+fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
+    if (isVisible) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .wrapContentSize(Alignment.Center)
+        ) {
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(16.dp)
+                    .wrapContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Proszę czekać rozpoznajemy twojego krasnala...", textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { onCancel() }) {
+                    Text("Cancel")
+                }
+            }
         }
     }
 }
