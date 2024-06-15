@@ -5,7 +5,7 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
+import androidx.compose.material3.AlertDialog
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
@@ -68,39 +68,29 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.FormBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
 import org.json.JSONObject
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.media.ExifInterface
 import android.util.Base64
 import android.widget.ProgressBar
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
-import okhttp3.MediaType
 import java.io.ByteArrayOutputStream
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import kotlin.math.max
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -112,16 +102,18 @@ class HomeActivity : ComponentActivity() {
     //Web Client ID - 492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com
     //Web Secret ID - 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
     var imageUri = mutableStateOf<Uri?>(null)
+    var imageWidth = mutableStateOf(0)
+    var imageHeight = mutableStateOf(0)
     lateinit var file: File
-    // *TODO* Check where it should be place when changed to false
     val responseInfo = mutableStateOf(false)
     var messageDwarf = mutableStateOf<String?>("")
+    var alertBadge = mutableStateOf(false)
     companion object {
         lateinit var database: DwarfsDatabase
         private const val REQUEST_CAMERA_PERMISSION = 123
     }
 
-    lateinit var progressDialog: AlertDialog
+    val isProgressDialogVisible = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,14 +122,6 @@ class HomeActivity : ComponentActivity() {
             //.fallbackToDestructiveMigration()
             .addMigrations(MIGRATION_1_2)
             .build()
-
-        val progressBar = ProgressBar(this)
-        val builder = AlertDialog.Builder(this).apply {
-            setTitle("Proszę czekać rozpoznajemy twojego krasnala...")
-            setCancelable(false)
-            setView(progressBar)
-        }
-        progressDialog = builder.create()
 
         setContent {
             ProjektzespolowyTheme {
@@ -215,23 +199,20 @@ class HomeActivity : ComponentActivity() {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
-        val originalWidth = options.outWidth
-        val originalHeight = options.outHeight
+        imageWidth.value = options.outWidth
+        imageHeight.value = options.outHeight
 
-        // Specify the desired dimensions
-        val desiredSize = 1200 // 2400   -> Adjust the desired size as needed
+        val desiredSize = 2400 // 1200 / 1600 / 2400   -> Adjust the desired size as needed
 
-        // Calculate the inSampleSize
-        options.inSampleSize = max(originalWidth, originalHeight)/desiredSize
+        options.inSampleSize = max(imageWidth.value, imageHeight.value)/desiredSize
         options.inJustDecodeBounds = false
 
-        // Decode the image with the calculated inSampleSize
         val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
 
         val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream) // Compress the image
+        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream)
         val bytes = byteArrayOutputStream.toByteArray()
 
 
@@ -254,10 +235,8 @@ class HomeActivity : ComponentActivity() {
             var connection: HttpURLConnection? = null
             try {
                 withContext(Dispatchers.Main) {
-                    progressDialog.show()
+                    isProgressDialogVisible.value = true
                 }
-
-                val startTime = System.currentTimeMillis()
 
                 // Timeout block
                 withTimeout(30_000) { // 30 seconds
@@ -269,7 +248,6 @@ class HomeActivity : ComponentActivity() {
                     connection!!.setRequestProperty("Content-Language", "en-US")
                     connection!!.useCaches = false
                     connection!!.doOutput = true
-                    Log.e("Upload URL", "Upload URL: ${uploadURL}")
                     // Send request
                     val wr = DataOutputStream(connection!!.outputStream)
                     wr.writeBytes(encodedFile)
@@ -283,39 +261,29 @@ class HomeActivity : ComponentActivity() {
                         rdr.lineSequence().forEach { responseStringBuilder.append(it) }
                     }
 
-                    val endTime = System.currentTimeMillis()
-
-                    val jsonResponse = JSONObject(responseStringBuilder.toString())
-                    val predictions = jsonResponse.getJSONArray("predictions")
-                    Log.d("Response", "Response: $predictions")
-                    if (predictions.length() > 0) {
-                        messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
-                        // TODO: check if slepak, gluchak, wskers -> pełna nazwa
-                        saveToDatabase(message = messageDwarf.value)
-                    } else {
-                        // Handle the case where the "predictions" array is empty
-                        messageDwarf.value = "Nie odnaleziono krasnala"
+                    if (isProgressDialogVisible.value){
+                        val jsonResponse = JSONObject(responseStringBuilder.toString())
+                        val predictions = jsonResponse.getJSONArray("predictions")
+                        Log.d("Response", "Response: $predictions")
+                        if (predictions.length() > 0) {
+                            messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
+                            // TODO: check if slepak, gluchak, wskers -> pełna nazwa
+                            saveToDatabase(message = messageDwarf.value)
+                        } else {
+                            messageDwarf.value = "Nie odnaleziono krasnala"
+                        }
                     }
 
-                    val duration = (endTime - startTime) / 1000.0
 
                     withContext(Dispatchers.Main) {
-                        progressDialog.dismiss()
-                        Toast.makeText(
-                            this@HomeActivity,
-                            "Response time: $duration s",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        isProgressDialogVisible.value = false
                     }
 
-                    Log.d("TEST_ROBOFLOW", "Response time: $duration s")
                     Log.d("TEST_ROBOFLOW", "Class: ${messageDwarf.value}")
-
-
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
-                    progressDialog.dismiss()
+                    isProgressDialogVisible.value = false
                     Toast.makeText(
                         this@HomeActivity,
                         "Upload timed out after 30 seconds.",
@@ -325,7 +293,7 @@ class HomeActivity : ComponentActivity() {
                 Log.e("UPLOAD_ERROR", "Upload timed out", e)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    progressDialog.dismiss()
+                    isProgressDialogVisible.value = false
                     Toast.makeText(
                         this@HomeActivity,
                         "Upload failed: ${e.message}",
@@ -339,13 +307,15 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        super.onBackPressed()
-        // Cancel the job
+    fun cancelUpload() {
         uploadJob?.cancel()
-        // Dismiss the progress dialog
-        progressDialog.dismiss()
+        uploadJob = null // Clear the job reference
+        CoroutineScope(Dispatchers.Main).launch {
+            isProgressDialogVisible.value = false
+            Toast.makeText(this@HomeActivity, "Upload canceled", Toast.LENGTH_SHORT).show()
+        }
     }
+
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkInfo = connectivityManager.activeNetworkInfo
@@ -359,10 +329,25 @@ class HomeActivity : ComponentActivity() {
             uploadedDwarf?.let {
                 if(database.dwarfs().dwarfExists(it.name)){
                     database.dwarfs().updateDwarfCount(it.name)
+                    // Odkomentuj jak chcesz zobaczyć, bez dobijania do Odznaki
+                    // i ustaw obecną ilość w twojej bazie
+                    if(database.dwarfs().getDwarfsCount() == 23){
+                        alertBadge.value = true
+                    }
                     return
                 }
                 else{
                     database.dwarfs().insert(it)
+                    if((database.dwarfs().getDwarfsCount() == 1) or
+                        (database.dwarfs().getDwarfsCount() == 10) or
+                        (database.dwarfs().getDwarfsCount() == 20) or
+                        (database.dwarfs().getDwarfsCount() == 30) or
+                        (database.dwarfs().getDwarfsCount() == 40) or
+                        (database.dwarfs().getDwarfsCount() == 50) or
+                        (database.dwarfs().getDwarfsCount() == 60) or
+                        (database.dwarfs().getDwarfsCount() == 70) ){
+                        alertBadge.value = true
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -441,6 +426,13 @@ fun HomeScreen(activity: HomeActivity) {
             }
 
             if (activity.imageUri.value != null) {
+                lateinit var ImageModifier: Modifier
+                if( activity.imageHeight.value > activity.imageWidth.value){
+                    ImageModifier = Modifier.fillMaxHeight()
+                }
+                else{
+                    ImageModifier = Modifier.fillMaxWidth()
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -453,7 +445,8 @@ fun HomeScreen(activity: HomeActivity) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Top
                         ){
                             if(!activity.responseInfo.value) {
                                 Button(
@@ -470,14 +463,16 @@ fun HomeScreen(activity: HomeActivity) {
                                 }
                             }
                             else{
+                                if(activity.alertBadge.value){
+                                    NewBadgeDialog(activity = activity)
+                                }
                                 Text(activity.messageDwarf.value.toString())
                             }
                         }
-                    }
-                    item{
+                        Spacer(modifier = Modifier.height(32.dp))
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction = 1f)
+                            modifier = ImageModifier,
+                            verticalAlignment = Alignment.Bottom
                         ) {
                             decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
                                 val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
@@ -487,7 +482,7 @@ fun HomeScreen(activity: HomeActivity) {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .rotate(rotationDegrees.toFloat())
-                                        .padding(8.dp),
+                                        .padding(12.dp),
                                     contentScale = ContentScale.FillWidth
                                 )
                             }
@@ -507,43 +502,78 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
 }
 
 @Composable
-fun DropDownPanel(activity: HomeActivity) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentSize(Alignment.TopStart)
-    )  {
-        IconButton(
-            onClick = { expanded = !expanded },
-            modifier = Modifier.padding(16.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(R.color.Light_Red))
-        ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "..."
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
+fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
+    if (isVisible) {
+        Box(
             modifier = Modifier
-                .background(color = Dark_Purple)
-                .padding(16.dp)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
                 .wrapContentSize(Alignment.Center)
         ) {
-            DropdownMenuItem(
-                text = { Text(text ="Wyloguj", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
-                onClick = {
-                    val navigate = Intent(activity, MainActivity::class.java)
-                    activity.startActivity(navigate)
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(16.dp)
+                    .wrapContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Proszę czekać rozpoznajemy twojego krasnala...", textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { onCancel() }) {
+                    Text("Cancel")
                 }
-            )
-
+            }
         }
     }
 }
 
-
+@Composable
+fun NewBadgeDialog(activity: HomeActivity){
+    AlertDialog(
+        onDismissRequest = {
+        },
+        title = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ){
+                Text(text = "Gratulacje", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Light_Purple)
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ){
+                Text(
+                    text = "Odnalazłeś nowego krasnala!",
+                    textAlign = TextAlign.Center,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                    color = Light_Purple
+                )
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = {
+                        activity.alertBadge.value = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                ){
+                    Icon(
+                        painter = painterResource(id = R.drawable.button_dwarf),
+                        contentDescription = "...",
+                        tint = Light_Purple
+                    )
+                }
+            }
+        }
+    )
+}
