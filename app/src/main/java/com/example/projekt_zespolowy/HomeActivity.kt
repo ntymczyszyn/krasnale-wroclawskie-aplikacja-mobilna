@@ -2,6 +2,7 @@ package com.example.projekt_zespolowy
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
 import androidx.compose.material3.AlertDialog
@@ -204,7 +205,6 @@ class HomeActivity : ComponentActivity() {
         val desiredSize = 2400 // 1200 / 1600 / 2400   -> Adjust the desired size as needed
 
         options.inSampleSize = max(imageWidth.value, imageHeight.value)/desiredSize
-
         options.inJustDecodeBounds = false
 
         val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -215,6 +215,8 @@ class HomeActivity : ComponentActivity() {
         bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream)
         val bytes = byteArrayOutputStream.toByteArray()
 
+
+        // ==================
         if (bytes.isEmpty()) {
             Log.d("UPLOAD_ERROR", "Image file is empty")
             return@withContext
@@ -246,7 +248,6 @@ class HomeActivity : ComponentActivity() {
                     connection!!.setRequestProperty("Content-Language", "en-US")
                     connection!!.useCaches = false
                     connection!!.doOutput = true
-
                     // Send request
                     val wr = DataOutputStream(connection!!.outputStream)
                     wr.writeBytes(encodedFile)
@@ -272,6 +273,7 @@ class HomeActivity : ComponentActivity() {
                             messageDwarf.value = "Nie odnaleziono krasnala"
                         }
                     }
+
 
                     withContext(Dispatchers.Main) {
                         isProgressDialogVisible.value = false
@@ -499,33 +501,6 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
     }
 }
 
-@Composable
-fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
-    if (isVisible) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .wrapContentSize(Alignment.Center)
-        ) {
-            Column(
-                modifier = Modifier
-                    .background(Color.White)
-                    .padding(16.dp)
-                    .wrapContentSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Proszę czekać rozpoznajemy twojego krasnala...", textAlign = TextAlign.Center)
-                Spacer(modifier = Modifier.height(20.dp))
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(onClick = { onCancel() }) {
-                    Text("Cancel")
-                }
-            }
-        }
-    }
-}
 @Composable
 fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
     if (isVisible) {
