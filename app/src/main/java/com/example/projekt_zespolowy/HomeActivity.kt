@@ -4,7 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
+import androidx.compose.material3.AlertDialog
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
@@ -76,9 +76,12 @@ import android.media.ExifInterface
 import android.util.Base64
 import android.widget.ProgressBar
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -98,10 +101,12 @@ class HomeActivity : ComponentActivity() {
     //Web Client ID - 492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com
     //Web Secret ID - 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
     var imageUri = mutableStateOf<Uri?>(null)
+    var imageWidth = mutableStateOf(0)
+    var imageHeight = mutableStateOf(0)
     lateinit var file: File
-    // *TODO* Check where it should be place when changed to false
     val responseInfo = mutableStateOf(false)
     var messageDwarf = mutableStateOf<String?>("")
+    var alertBadge = mutableStateOf(false)
     companion object {
         lateinit var database: DwarfsDatabase
         private const val REQUEST_CAMERA_PERMISSION = 123
@@ -193,12 +198,13 @@ class HomeActivity : ComponentActivity() {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
-        val originalWidth = options.outWidth
-        val originalHeight = options.outHeight
+        imageWidth.value = options.outWidth
+        imageHeight.value = options.outHeight
 
-        val desiredSize = 1200 // 2400   -> Adjust the desired size as needed
+        val desiredSize = 2400 // 1200 / 1600 / 2400   -> Adjust the desired size as needed
 
-        options.inSampleSize = max(originalWidth, originalHeight)/desiredSize
+        options.inSampleSize = max(imageWidth.value, imageHeight.value)/desiredSize
+
         options.inJustDecodeBounds = false
 
         val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -298,6 +304,7 @@ class HomeActivity : ComponentActivity() {
             }
         }
     }
+
     fun cancelUpload() {
         uploadJob?.cancel()
         uploadJob = null // Clear the job reference
@@ -306,7 +313,6 @@ class HomeActivity : ComponentActivity() {
             Toast.makeText(this@HomeActivity, "Upload canceled", Toast.LENGTH_SHORT).show()
         }
     }
-
 
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -321,10 +327,25 @@ class HomeActivity : ComponentActivity() {
             uploadedDwarf?.let {
                 if(database.dwarfs().dwarfExists(it.name)){
                     database.dwarfs().updateDwarfCount(it.name)
+                    // Odkomentuj jak chcesz zobaczyć, bez dobijania do Odznaki
+                    // i ustaw obecną ilość w twojej bazie
+                    if(database.dwarfs().getDwarfsCount() == 23){
+                        alertBadge.value = true
+                    }
                     return
                 }
                 else{
                     database.dwarfs().insert(it)
+                    if((database.dwarfs().getDwarfsCount() == 1) or
+                        (database.dwarfs().getDwarfsCount() == 10) or
+                        (database.dwarfs().getDwarfsCount() == 20) or
+                        (database.dwarfs().getDwarfsCount() == 30) or
+                        (database.dwarfs().getDwarfsCount() == 40) or
+                        (database.dwarfs().getDwarfsCount() == 50) or
+                        (database.dwarfs().getDwarfsCount() == 60) or
+                        (database.dwarfs().getDwarfsCount() == 70) ){
+                        alertBadge.value = true
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -403,6 +424,13 @@ fun HomeScreen(activity: HomeActivity) {
             }
 
             if (activity.imageUri.value != null) {
+                lateinit var ImageModifier: Modifier
+                if( activity.imageHeight.value > activity.imageWidth.value){
+                    ImageModifier = Modifier.fillMaxHeight()
+                }
+                else{
+                    ImageModifier = Modifier.fillMaxWidth()
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -415,7 +443,8 @@ fun HomeScreen(activity: HomeActivity) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Top
                         ){
                             if(!activity.responseInfo.value) {
                                 Button(
@@ -432,14 +461,16 @@ fun HomeScreen(activity: HomeActivity) {
                                 }
                             }
                             else{
+                                if(activity.alertBadge.value){
+                                    NewBadgeDialog(activity = activity)
+                                }
                                 Text(activity.messageDwarf.value.toString())
                             }
                         }
-                    }
-                    item{
+                        Spacer(modifier = Modifier.height(32.dp))
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction = 1f)
+                            modifier = ImageModifier,
+                            verticalAlignment = Alignment.Bottom
                         ) {
                             decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
                                 val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
@@ -449,7 +480,7 @@ fun HomeScreen(activity: HomeActivity) {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .rotate(rotationDegrees.toFloat())
-                                        .padding(8.dp),
+                                        .padding(12.dp),
                                     contentScale = ContentScale.FillWidth
                                 )
                             }
@@ -469,41 +500,29 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
 }
 
 @Composable
-fun DropDownPanel(activity: HomeActivity) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentSize(Alignment.TopStart)
-    )  {
-        IconButton(
-            onClick = { expanded = !expanded },
-            modifier = Modifier.padding(16.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(R.color.Light_Red))
-        ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "..."
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
+fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
+    if (isVisible) {
+        Box(
             modifier = Modifier
-                .background(color = Dark_Purple)
-                .padding(16.dp)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
                 .wrapContentSize(Alignment.Center)
         ) {
-            DropdownMenuItem(
-                text = { Text(text ="Wyloguj", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
-                onClick = {
-                    val navigate = Intent(activity, MainActivity::class.java)
-                    activity.startActivity(navigate)
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(16.dp)
+                    .wrapContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Proszę czekać rozpoznajemy twojego krasnala...", textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { onCancel() }) {
+                    Text("Cancel")
                 }
-            )
-
+            }
         }
     }
 }
@@ -535,4 +554,51 @@ fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
     }
 }
 
-
+@Composable
+fun NewBadgeDialog(activity: HomeActivity){
+    AlertDialog(
+        onDismissRequest = {
+        },
+        title = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ){
+                Text(text = "Gratulacje", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = Light_Purple)
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ){
+                Text(
+                    text = "Odnalazłeś nowego krasnala!",
+                    textAlign = TextAlign.Center,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                    color = Light_Purple
+                )
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = {
+                        activity.alertBadge.value = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                ){
+                    Icon(
+                        painter = painterResource(id = R.drawable.button_dwarf),
+                        contentDescription = "...",
+                        tint = Light_Purple
+                    )
+                }
+            }
+        }
+    )
+}
