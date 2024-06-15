@@ -5,7 +5,7 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
-import androidx.compose.material3.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
@@ -68,28 +68,39 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.media.ExifInterface
 import android.util.Base64
 import android.widget.ProgressBar
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
+import okhttp3.MediaType
 import java.io.ByteArrayOutputStream
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import kotlin.math.max
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -101,12 +112,10 @@ class HomeActivity : ComponentActivity() {
     //Web Client ID - 492039840169-dco3kmv75kkr4djr4ua4fnu6a5g13beh.apps.googleusercontent.com
     //Web Secret ID - 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
     var imageUri = mutableStateOf<Uri?>(null)
-    var imageWidth = mutableStateOf(0)
-    var imageHeight = mutableStateOf(0)
     lateinit var file: File
+    // *TODO* Check where it should be place when changed to false
     val responseInfo = mutableStateOf(false)
     var messageDwarf = mutableStateOf<String?>("")
-    var alertBadge = mutableStateOf(false)
     companion object {
         lateinit var database: DwarfsDatabase
         private const val REQUEST_CAMERA_PERMISSION = 123
@@ -206,14 +215,14 @@ class HomeActivity : ComponentActivity() {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
-        imageWidth.value = options.outWidth
-        imageHeight.value = options.outHeight
+        val originalWidth = options.outWidth
+        val originalHeight = options.outHeight
 
         // Specify the desired dimensions
-        val desiredSize = 2400 // 1200 / 1600 / 2400   -> Adjust the desired size as needed
+        val desiredSize = 1200 // 2400   -> Adjust the desired size as needed
 
         // Calculate the inSampleSize
-        options.inSampleSize = max(imageWidth.value, imageHeight.value)/desiredSize
+        options.inSampleSize = max(originalWidth, originalHeight)/desiredSize
         options.inJustDecodeBounds = false
 
         // Decode the image with the calculated inSampleSize
@@ -281,9 +290,7 @@ class HomeActivity : ComponentActivity() {
                     Log.d("Response", "Response: $predictions")
                     if (predictions.length() > 0) {
                         messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
-                        if (messageDwarf.value == "Slepak" || messageDwarf.value == "Gluchak" || messageDwarf.value == "W-Skers") {
-                            messageDwarf.value = "Ślepak, Głuchak i W-Skers"
-                        }
+                        // TODO: check if slepak, gluchak, wskers -> pełna nazwa
                         saveToDatabase(message = messageDwarf.value)
                     } else {
                         // Handle the case where the "predictions" array is empty
@@ -294,11 +301,11 @@ class HomeActivity : ComponentActivity() {
 
                     withContext(Dispatchers.Main) {
                         progressDialog.dismiss()
-//                        Toast.makeText(
-//                            this@HomeActivity,
-//                            "Response time: $duration s",
-//                            Toast.LENGTH_LONG
-//                        ).show()
+                        Toast.makeText(
+                            this@HomeActivity,
+                            "Response time: $duration s",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
 
                     Log.d("TEST_ROBOFLOW", "Response time: $duration s")
@@ -352,25 +359,10 @@ class HomeActivity : ComponentActivity() {
             uploadedDwarf?.let {
                 if(database.dwarfs().dwarfExists(it.name)){
                     database.dwarfs().updateDwarfCount(it.name)
-                    // Odkomentuj jak chcesz zobaczyć, bez dobijania do Odznaki
-                    // i ustaw obecną ilość w twojej bazie
-//                    if(database.dwarfs().getDwarfsCount() == 22){
-//                        alertBadge.value = true
-//                    }
                     return
                 }
                 else{
                     database.dwarfs().insert(it)
-                    if((database.dwarfs().getDwarfsCount() == 1) or
-                        (database.dwarfs().getDwarfsCount() == 10) or
-                        (database.dwarfs().getDwarfsCount() == 20) or
-                        (database.dwarfs().getDwarfsCount() == 30) or
-                        (database.dwarfs().getDwarfsCount() == 40) or
-                        (database.dwarfs().getDwarfsCount() == 50) or
-                        (database.dwarfs().getDwarfsCount() == 60) or
-                        (database.dwarfs().getDwarfsCount() == 70) ){
-                        alertBadge.value = true
-                    }
                 }
             }
         } catch (e: Exception) {
@@ -449,13 +441,6 @@ fun HomeScreen(activity: HomeActivity) {
             }
 
             if (activity.imageUri.value != null) {
-                lateinit var ImageModifier: Modifier
-                if( activity.imageHeight.value > activity.imageWidth.value){
-                    ImageModifier = Modifier.fillMaxHeight()
-                }
-                else{
-                    ImageModifier = Modifier.fillMaxWidth()
-                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -468,8 +453,7 @@ fun HomeScreen(activity: HomeActivity) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.Top
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ){
                             if(!activity.responseInfo.value) {
                                 Button(
@@ -486,16 +470,14 @@ fun HomeScreen(activity: HomeActivity) {
                                 }
                             }
                             else{
-                                if(activity.alertBadge.value){
-                                    NewBadgeDialog(activity = activity)
-                                }
                                 Text(activity.messageDwarf.value.toString())
                             }
                         }
-                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                    item{
                         Row(
-                            modifier = ImageModifier,
-                            verticalAlignment = Alignment.Bottom
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = 1f)
                         ) {
                             decodeBitmap(activity, activity.imageUri.value!!)?.let { bitmap ->
                                 val rotationDegrees = activity.getRotationDegrees(activity, activity.imageUri.value!!)
@@ -505,7 +487,7 @@ fun HomeScreen(activity: HomeActivity) {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .rotate(rotationDegrees.toFloat())
-                                        .padding(12.dp),
+                                        .padding(8.dp),
                                     contentScale = ContentScale.FillWidth
                                 )
                             }
@@ -525,49 +507,43 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
 }
 
 @Composable
-fun NewBadgeDialog(activity: HomeActivity){
-    AlertDialog(
-        onDismissRequest = {
-        },
-        title = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ){
-                Text(text = "Gratulacje")
-            }
-        },
-        text = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ){
-                Text(
-                    text = "Odnalazłeś nowego krasnala!",
-                    textAlign = TextAlign.Center
-                )
-            }
-        },
-        confirmButton = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Button(
-                    onClick = {
-                        activity.alertBadge.value = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                ){
-                    Icon(
-                        painter = painterResource(id = R.drawable.button_dwarf),
-                        contentDescription = "...",
-                        tint = Light_Purple
-                    )
-                }
-            }
+fun DropDownPanel(activity: HomeActivity) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentSize(Alignment.TopStart)
+    )  {
+        IconButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.padding(16.dp),
+            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(R.color.Light_Red))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = "..."
+            )
         }
-    )
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .background(color = Dark_Purple)
+                .padding(16.dp)
+                .wrapContentSize(Alignment.Center)
+        ) {
+            DropdownMenuItem(
+                text = { Text(text ="Wyloguj", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
+                onClick = {
+                    val navigate = Intent(activity, MainActivity::class.java)
+                    activity.startActivity(navigate)
+                }
+            )
+
+        }
+    }
 }
 
 

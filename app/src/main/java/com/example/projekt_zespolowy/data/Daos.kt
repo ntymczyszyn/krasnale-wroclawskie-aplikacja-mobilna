@@ -27,9 +27,6 @@ interface DwarfDao {
     @Query("SELECT * FROM dwarfs ORDER BY date_stamp DESC")
     fun getAllByDate(): Flow<List<Dwarfs>>
 
-    @Query("SELECT COUNT(*) FROM dwarfs")
-    fun getDwarfsCount(): Int
-
     @Delete
     fun delete(dwarf: Dwarfs): Void
 

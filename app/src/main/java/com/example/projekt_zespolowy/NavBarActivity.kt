@@ -81,6 +81,7 @@ fun TopBar(activity: HomeActivity) {
                 modifier = Modifier.wrapContentSize(),
                 textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.width(120.dp))
             DropDownPanel(activity = activity)
         },
         backgroundColor = Dark_Purple,
@@ -126,47 +127,6 @@ fun BottomNavigationBar(navController: NavController) {
         }
     }
 }
-
-@Composable
-fun DropDownPanel(activity: HomeActivity) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentSize(Alignment.TopEnd)
-    )  {
-        IconButton(
-            onClick = { expanded = !expanded },
-            modifier = Modifier.padding(16.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(R.color.Light_Red))
-        ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "..."
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .background(color = Dark_Purple)
-                .padding(16.dp)
-                .wrapContentSize(Alignment.Center)
-        ) {
-            DropdownMenuItem(
-                text = { Text(text ="Wyloguj", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
-                onClick = {
-                    val navigate = Intent(activity, MainActivity::class.java)
-                    activity.startActivity(navigate)
-                }
-            )
-
-        }
-    }
-}
-
 @Composable
 fun MainScreen(activity: HomeActivity) {
     val navController = rememberNavController()
