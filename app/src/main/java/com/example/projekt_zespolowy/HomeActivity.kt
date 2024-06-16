@@ -313,6 +313,7 @@ class HomeActivity : ComponentActivity() {
         uploadJob?.cancel()
         uploadJob = null // Clear the job reference
         CoroutineScope(Dispatchers.Main).launch {
+            responseInfo.value = false
             Toast.makeText(this@HomeActivity, "Upload canceled", Toast.LENGTH_SHORT).show()
         }
     }
