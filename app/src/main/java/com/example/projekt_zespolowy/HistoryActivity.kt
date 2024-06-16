@@ -77,7 +77,7 @@ fun HistoryScreen(activity: HomeActivity) {
             Spacer(modifier = Modifier.height(4.dp))
             LazyColumn() {
                 items(dwarfsList) {
-                    DwarfCard(dwarf = it, activity = activity)
+                    DwarfCard(dwarf = it)
                     Spacer(modifier = Modifier.height(2.dp))
                 }
             }
@@ -86,8 +86,7 @@ fun HistoryScreen(activity: HomeActivity) {
 }
 
 @Composable
-fun DwarfCard(dwarf: Dwarfs,
-              activity: HomeActivity) {
+fun DwarfCard(dwarf: Dwarfs) {
     lateinit var day: String
     lateinit var month: String
     day = if(dwarf.date_stamp.date < 10){

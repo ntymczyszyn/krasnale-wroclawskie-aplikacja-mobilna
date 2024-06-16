@@ -267,7 +267,9 @@ class HomeActivity : ComponentActivity() {
                         Log.d("Response", "Response: $predictions")
                         if (predictions.length() > 0) {
                             messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
-                            // TODO: check if slepak, gluchak, wskers -> pełna nazwa
+                            if (messageDwarf.value == "Slepak" || messageDwarf.value == "Gluchak" || messageDwarf.value == "W-Skers") {
+                                messageDwarf.value = "Ślepak, Głuchak i W-Skers"
+                            }
                             saveToDatabase(message = messageDwarf.value)
                         } else {
                             messageDwarf.value = "Nie odnaleziono krasnala"
@@ -311,7 +313,6 @@ class HomeActivity : ComponentActivity() {
         uploadJob?.cancel()
         uploadJob = null // Clear the job reference
         CoroutineScope(Dispatchers.Main).launch {
-            isProgressDialogVisible.value = false
             Toast.makeText(this@HomeActivity, "Upload canceled", Toast.LENGTH_SHORT).show()
         }
     }
@@ -329,26 +330,19 @@ class HomeActivity : ComponentActivity() {
             uploadedDwarf?.let {
                 if(database.dwarfs().dwarfExists(it.name)){
                     database.dwarfs().updateDwarfCount(it.name)
-                    // Odkomentuj jak chcesz zobaczyć, bez dobijania do Odznaki
-                    // i ustaw obecną ilość w twojej bazie
-                    if(database.dwarfs().getDwarfsCount() == 23){
-                        alertBadge.value = true
-                    }
-                    return
                 }
                 else{
                     database.dwarfs().insert(it)
                     if((database.dwarfs().getDwarfsCount() == 1) or
-                        (database.dwarfs().getDwarfsCount() == 10) or
-                        (database.dwarfs().getDwarfsCount() == 20) or
-                        (database.dwarfs().getDwarfsCount() == 30) or
-                        (database.dwarfs().getDwarfsCount() == 40) or
-                        (database.dwarfs().getDwarfsCount() == 50) or
-                        (database.dwarfs().getDwarfsCount() == 60) or
-                        (database.dwarfs().getDwarfsCount() == 70) ){
+                        (database.dwarfs().getDwarfsCount() % 10 == 0)){
                         alertBadge.value = true
                     }
                 }
+                // Odkomentuj jak chcesz zobaczyć, bez dobijania do Odznaki
+                // i ustaw obecną ilość w twojej bazie
+//                if(database.dwarfs().getDwarfsCount() > 5){
+//                    alertBadge.value = true
+//                }
             }
         } catch (e: Exception) {
             Log.e("Database Insertion", "Error inserting dwarf", e)
@@ -459,10 +453,13 @@ fun HomeScreen(activity: HomeActivity) {
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Light_Purple)
                                 ) {
-                                    Text("Upload image")
+                                    Text("Znadź krasnala")
                                 }
                             }
                             else{
+                                if(activity.isProgressDialogVisible.value){
+                                    ProgressDialog(activity = activity, onCancel = { activity.cancelUpload() })
+                                }
                                 if(activity.alertBadge.value){
                                     NewBadgeDialog(activity = activity)
                                 }
@@ -502,31 +499,48 @@ fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
 }
 
 @Composable
-fun ProgressDialog(isVisible: Boolean, onCancel: () -> Unit) {
-    if (isVisible) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .wrapContentSize(Alignment.Center)
-        ) {
-            Column(
-                modifier = Modifier
-                    .background(Color.White)
-                    .padding(16.dp)
-                    .wrapContentSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
+fun ProgressDialog(activity: HomeActivity, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = {
+        },
+        title = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ){
+                Text(
+                    text = "Proszę czekać rozpoznajemy twojego krasnala...",
+                    color = Light_Purple,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Proszę czekać rozpoznajemy twojego krasnala...", textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(20.dp))
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(20.dp))
-                Button(onClick = { onCancel() }) {
-                    Text("Cancel")
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Button(
+                    onClick = {
+                        activity.isProgressDialogVisible.value = false
+                        onCancel()
+                    }
+                ) {
+                    Text("Anuluj")
                 }
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -548,7 +562,7 @@ fun NewBadgeDialog(activity: HomeActivity){
                 contentAlignment = Alignment.Center
             ){
                 Text(
-                    text = "Odnalazłeś nowego krasnala!",
+                    text = "Otrzymujesz nową odznakę!",
                     textAlign = TextAlign.Center,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     fontSize = MaterialTheme.typography.bodyLarge.fontSize,
