@@ -512,7 +512,8 @@ fun ProgressDialog(activity: HomeActivity, onCancel: () -> Unit) {
                 Text(
                     text = "Proszę czekać rozpoznajemy twojego krasnala...",
                     color = Light_Purple,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                 )
             }
         },
