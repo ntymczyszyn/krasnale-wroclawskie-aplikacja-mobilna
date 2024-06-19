@@ -92,6 +92,7 @@ import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.max
+import kotlin.math.sqrt
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -193,36 +194,56 @@ class HomeActivity : ComponentActivity() {
             }
             return@withContext
         }
+
         val options = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
         contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
-        imageWidth.value = options.outWidth
-        imageHeight.value = options.outHeight
+        val imageWidth = options.outWidth
+        val imageHeight = options.outHeight
+        val imageSizeInMP = (imageWidth * imageHeight) / 1_000_000.0
 
-        val desiredSize = 2400 // 1200 / 1600 / 2400   -> Adjust the desired size as needed
+        Log.d("TEST_IMAGE_ORIGINAL", "Width: $imageWidth, Height: $imageHeight, Size: ${imageSizeInMP}MP")
 
-        options.inSampleSize = max(imageWidth.value, imageHeight.value)/desiredSize
-        options.inJustDecodeBounds = false
+        val bytes : ByteArray
 
-        val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
-            BitmapFactory.decodeStream(inputStream, null, options)
+        if (imageSizeInMP > 4) {
+            val scaleFactor = sqrt(4 / imageSizeInMP)
+            var newWidth = (imageWidth * scaleFactor).toInt()
+            var newHeight = (imageHeight * scaleFactor).toInt()
+
+            if (newWidth % 2 != 0) {
+                newWidth++
+            }
+            if (newHeight % 2 != 0) {
+                newHeight++
+            }
+
+            options.inJustDecodeBounds = false
+            val bitmap = contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
+            }
+
+            val resizedBitmap =
+                bitmap?.let { Bitmap.createScaledBitmap(it, newWidth, newHeight, true) }
+
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            resizedBitmap?.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
+            bytes = byteArrayOutputStream.toByteArray()
+
+            if (resizedBitmap != null) {
+                Log.d("TEST_IMAGE_RESIZED", "Width: ${resizedBitmap.width}, Height: ${resizedBitmap.height}, Size: ${(resizedBitmap.width * resizedBitmap.height) / 1_000_000.0}MP")
+            }
+        } else {
+            bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
         }
 
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap?.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream)
-        val bytes = byteArrayOutputStream.toByteArray()
-
-
-        // ==================
         if (bytes.isEmpty()) {
-            Log.d("UPLOAD_ERROR", "Image file is empty")
+            Log.d("TEST_UPLOAD_ERROR", "Image file is empty")
             return@withContext
         }
-
-        Log.e("Upload URI", "Uri: ${uri}")
 
         uploadJob = CoroutineScope(Dispatchers.IO).launch {
             val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
@@ -264,7 +285,7 @@ class HomeActivity : ComponentActivity() {
                     if (isProgressDialogVisible.value){
                         val jsonResponse = JSONObject(responseStringBuilder.toString())
                         val predictions = jsonResponse.getJSONArray("predictions")
-                        Log.d("Response", "Response: $predictions")
+                        Log.d("TEST_RESPONSE", "Response: $predictions")
                         if (predictions.length() > 0) {
                             messageDwarf.value = predictions.getJSONObject(0).getString("class").replace("_", " ")
                             if (messageDwarf.value == "Slepak" || messageDwarf.value == "Gluchak" || messageDwarf.value == "W-Skers") {
@@ -292,7 +313,7 @@ class HomeActivity : ComponentActivity() {
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                Log.e("UPLOAD_ERROR", "Upload timed out", e)
+                Log.e("TEST_UPLOAD_ERROR", "Upload timed out", e)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isProgressDialogVisible.value = false
@@ -302,7 +323,7 @@ class HomeActivity : ComponentActivity() {
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                Log.e("UPLOAD_ERROR", "Upload failed", e)
+                Log.e("TEST_UPLOAD_ERROR", "Upload failed", e)
             } finally {
                 connection?.disconnect()
             }
@@ -346,7 +367,7 @@ class HomeActivity : ComponentActivity() {
 //                }
             }
         } catch (e: Exception) {
-            Log.e("Database Insertion", "Error inserting dwarf", e)
+            Log.e("TEST_DB_INSERTION", "Error inserting dwarf", e)
         }
     }
 
@@ -371,16 +392,45 @@ fun HomeScreen(activity: HomeActivity) {
         "com.app.id.fileProvider", activity.file
     )
 
+    suspend fun isImageSizeValid(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        activity.contentResolver.openInputStream(uri)?.use { inputStream ->
+            BitmapFactory.decodeStream(inputStream, null, options)
+        }
+        val imageWidth = options.outWidth
+        val imageHeight = options.outHeight
+        val imageSizeInMP = (imageWidth * imageHeight) / 1_000_000.0
+
+        return@withContext imageSizeInMP <= 32
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) {
             activity.imageUri.value = uri
-            activity.saveImageToGallery(uri)
+            CoroutineScope(Dispatchers.Main).launch {
+                if (isImageSizeValid(uri)) {
+                    activity.saveImageToGallery(uri)
+                } else {
+                    Toast.makeText(activity, "Image is too large. Please take a photo which will be less than 32MP", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { activity.imageUri.value = it}
+        uri?.let {
+            CoroutineScope(Dispatchers.Main).launch {
+                if (isImageSizeValid(it)) {
+                    activity.imageUri.value = it
+                } else {
+                    Toast.makeText(activity, "Image is too large. Please select an image less than 32MP", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
+
 
     Box(modifier = Modifier
         .background(color = Light_Purple.copy(0.1f))
@@ -454,7 +504,7 @@ fun HomeScreen(activity: HomeActivity) {
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Light_Purple)
                                 ) {
-                                    Text("Znadź krasnala")
+                                    Text("Znajdź krasnala")
                                 }
                             }
                             else{
@@ -490,7 +540,10 @@ fun HomeScreen(activity: HomeActivity) {
             }
         }
     }
+
 }
+
+
 
 @Composable
 fun decodeBitmap(activity: HomeActivity, uri: Uri): ImageBitmap? {
