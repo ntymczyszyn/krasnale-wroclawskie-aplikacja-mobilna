@@ -92,6 +92,7 @@ import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -209,8 +210,9 @@ class HomeActivity : ComponentActivity() {
 
         val bytes : ByteArray
 
-        if (imageSizeInMP > 4) {
-            val scaleFactor = sqrt(4 / imageSizeInMP)
+        if (imageSizeInMP > 4.0804) {
+            val scaleFactor = sqrt(4.0804 / imageSizeInMP)
+
             var newWidth = (imageWidth * scaleFactor).toInt()
             var newHeight = (imageHeight * scaleFactor).toInt()
 
@@ -249,7 +251,7 @@ class HomeActivity : ComponentActivity() {
             val encodedFile = Base64.encodeToString(bytes, Base64.DEFAULT)
 
             val API_KEY = "9zbTgwMWBvZgonLi9Jla"
-            val MODEL_ENDPOINT = "krasnele_wro-g63lz/2"
+            val MODEL_ENDPOINT = "krasnele_wro-g63lz/4"
             val uploadURL =
                 "https://detect.roboflow.com/" + MODEL_ENDPOINT + "?api_key=" + API_KEY;
 
@@ -291,6 +293,15 @@ class HomeActivity : ComponentActivity() {
                             if (messageDwarf.value == "Slepak" || messageDwarf.value == "Gluchak" || messageDwarf.value == "W-Skers") {
                                 messageDwarf.value = "Ślepak, Głuchak i W-Skers"
                             }
+                            var confidence = predictions.getJSONObject(0).getDouble("confidence")
+                            Log.d("TEST_RESPONSE_CONFIDENCE", "Confidence: ${confidence}")
+//                            withContext(Dispatchers.Main) {
+//                                Toast.makeText(
+//                                    this@HomeActivity,
+//                                    "Confidence: ${confidence}",
+//                                    Toast.LENGTH_LONG
+//                                ).show()
+//                            }
                             saveToDatabase(message = messageDwarf.value)
                         } else {
                             messageDwarf.value = "Nie odnaleziono krasnala"
